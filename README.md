@@ -29,4 +29,22 @@ Start the API:
 ./mvnw spring-boot:run
 ```
 
+Start local PostgreSQL:
+
+```bash
+docker compose up -d postgres
+```
+
+Stop local PostgreSQL:
+
+```bash
+docker compose down
+```
+
+Stop local PostgreSQL and remove its data volume:
+
+```bash
+docker compose down -v
+```
+
 The API will expose versioned endpoints under `/api/v1` as features are implemented.
