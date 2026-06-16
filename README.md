@@ -23,10 +23,10 @@ Run tests:
 ./mvnw test
 ```
 
-Start the API:
+Start the API with the local profile:
 
 ```bash
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 Start local PostgreSQL:
