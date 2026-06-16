@@ -10,6 +10,7 @@ Spring Boot backend for a delivery dispatch workflow, built as a junior backend 
 - Spring Security
 - Spring Data JPA
 - Jakarta Validation
+- OpenAPI
 - PostgreSQL
 - Flyway
 - Testcontainers
@@ -48,5 +49,11 @@ docker compose down -v
 ```
 
 Database schema changes are managed with Flyway migrations in `src/main/resources/db/migration`.
+
+The OpenAPI JSON document is available locally at:
+
+```text
+http://localhost:8080/v3/api-docs
+```
 
 The API will expose versioned endpoints under `/api/v1` as features are implemented.

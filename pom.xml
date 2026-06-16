@@ -15,6 +15,7 @@
 	<description>Delivery Dispatch API</description>
 	<properties>
 		<java.version>21</java.version>
+		<springdoc.version>2.8.17</springdoc.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -36,6 +37,11 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+			<version>${springdoc.version}</version>
 		</dependency>
 
 		<dependency>
