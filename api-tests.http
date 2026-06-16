@@ -1,0 +1,7 @@
+@baseUrl = http://localhost:8080
+
+### Health check
+GET {{baseUrl}}/actuator/health
+
+### OpenAPI document
+GET {{baseUrl}}/v3/api-docs

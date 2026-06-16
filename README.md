@@ -56,4 +56,6 @@ The OpenAPI JSON document is available locally at:
 http://localhost:8080/v3/api-docs
 ```
 
+Runnable HTTP examples are kept in `api-tests.http`.
+
 The API will expose versioned endpoints under `/api/v1` as features are implemented.
