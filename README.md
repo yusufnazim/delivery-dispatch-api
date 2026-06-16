@@ -8,7 +8,11 @@ Spring Boot backend for a delivery dispatch workflow, built as a junior backend 
 - Spring Boot
 - Spring Web MVC
 - Spring Security
+- Spring Data JPA
 - Jakarta Validation
+- PostgreSQL
+- Flyway
+- Testcontainers
 - Maven
 
 ## Local Development
