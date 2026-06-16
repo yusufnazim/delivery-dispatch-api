@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: delivery-dispatch-api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
