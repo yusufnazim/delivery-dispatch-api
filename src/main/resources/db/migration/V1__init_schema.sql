@@ -1,0 +1,2 @@
+-- Baseline migration for Delivery Dispatch API.
+-- Domain tables will be added in focused migrations as features are implemented.

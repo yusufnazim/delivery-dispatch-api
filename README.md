@@ -47,4 +47,6 @@ Stop local PostgreSQL and remove its data volume:
 docker compose down -v
 ```
 
+Database schema changes are managed with Flyway migrations in `src/main/resources/db/migration`.
+
 The API will expose versioned endpoints under `/api/v1` as features are implemented.
