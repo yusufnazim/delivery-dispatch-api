@@ -2,6 +2,12 @@ spring:
   application:
     name: delivery-dispatch-api
 
+app:
+  jwt:
+    issuer: ${JWT_ISSUER:delivery-dispatch-api}
+    secret: ${JWT_SECRET:}
+    expiration: ${JWT_EXPIRATION:1h}
+
 management:
   endpoints:
     web:

@@ -9,3 +9,7 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+
+app:
+  jwt:
+    secret: local-development-jwt-secret-change-me
