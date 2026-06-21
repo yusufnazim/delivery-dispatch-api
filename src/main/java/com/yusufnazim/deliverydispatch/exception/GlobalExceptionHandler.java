@@ -1,6 +1,7 @@
 package com.yusufnazim.deliverydispatch.exception;
 
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
+import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -14,6 +15,12 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ApiErrorResponse handleEmailAlreadyRegistered(EmailAlreadyRegisteredException exception) {
 		return new ApiErrorResponse("EMAIL_ALREADY_REGISTERED", exception.getMessage());
+	}
+
+	@ExceptionHandler(InvalidLoginCredentialsException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	public ApiErrorResponse handleInvalidLoginCredentials(InvalidLoginCredentialsException exception) {
+		return new ApiErrorResponse("INVALID_LOGIN_CREDENTIALS", exception.getMessage());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

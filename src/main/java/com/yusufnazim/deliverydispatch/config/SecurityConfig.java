@@ -18,7 +18,11 @@ public class SecurityConfig {
 		return http
 				.csrf(AbstractHttpConfigurer::disable)
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
+						.requestMatchers(
+								HttpMethod.POST,
+								"/api/v1/auth/register",
+								"/api/v1/auth/login")
+						.permitAll()
 						.requestMatchers(
 								"/actuator/health",
 								"/v3/api-docs/**")

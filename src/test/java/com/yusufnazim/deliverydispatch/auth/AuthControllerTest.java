@@ -10,8 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yusufnazim.deliverydispatch.auth.dto.LoginRequest;
+import com.yusufnazim.deliverydispatch.auth.dto.LoginResponse;
 import com.yusufnazim.deliverydispatch.auth.dto.RegisterCustomerRequest;
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
+import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
 import org.junit.jupiter.api.Test;
@@ -92,6 +95,66 @@ class AuthControllerTest {
 						.content(objectMapper.writeValueAsString(request)))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"));
+	}
+
+	@Test
+	void loginReturnsTokenResponse() throws Exception {
+		LoginRequest request = new LoginRequest(
+				"customer@example.com",
+				"StrongPass123");
+		LoginResponse response = new LoginResponse(
+				"jwt-token",
+				7L,
+				"customer@example.com",
+				Role.CUSTOMER);
+		when(authService.login(any(LoginRequest.class))).thenReturn(response);
+
+		mockMvc.perform(post("/api/v1/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.token").value("jwt-token"))
+				.andExpect(jsonPath("$.userId").value(7))
+				.andExpect(jsonPath("$.email").value("customer@example.com"))
+				.andExpect(jsonPath("$.role").value("CUSTOMER"));
+
+		ArgumentCaptor<LoginRequest> requestCaptor = ArgumentCaptor.forClass(LoginRequest.class);
+		verify(authService).login(requestCaptor.capture());
+		assertThat(requestCaptor.getValue().email()).isEqualTo("customer@example.com");
+		assertThat(requestCaptor.getValue().password()).isEqualTo("StrongPass123");
+	}
+
+	@Test
+	void loginRejectsInvalidRequest() throws Exception {
+		String invalidRequest = """
+				{
+				  "email": "not-an-email",
+				  "password": ""
+				}
+				""";
+
+		mockMvc.perform(post("/api/v1/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(invalidRequest))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+		verifyNoInteractions(authService);
+	}
+
+	@Test
+	void loginReturnsUnauthorizedForInvalidCredentials() throws Exception {
+		LoginRequest request = new LoginRequest(
+				"customer@example.com",
+				"WrongPass123");
+		when(authService.login(any(LoginRequest.class)))
+				.thenThrow(new InvalidLoginCredentialsException());
+
+		mockMvc.perform(post("/api/v1/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("INVALID_LOGIN_CREDENTIALS"));
 	}
 
 	private User user(Long id, String email, Role role) {

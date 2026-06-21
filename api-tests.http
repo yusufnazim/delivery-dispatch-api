@@ -5,3 +5,21 @@ GET {{baseUrl}}/actuator/health
 
 ### OpenAPI document
 GET {{baseUrl}}/v3/api-docs
+
+### Register customer
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "customer@example.com",
+  "password": "StrongPass123"
+}
+
+### Login
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@example.com",
+  "password": "StrongPass123"
+}

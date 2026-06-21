@@ -1,5 +1,7 @@
 package com.yusufnazim.deliverydispatch.auth;
 
+import com.yusufnazim.deliverydispatch.auth.dto.LoginRequest;
+import com.yusufnazim.deliverydispatch.auth.dto.LoginResponse;
 import com.yusufnazim.deliverydispatch.auth.dto.RegisterCustomerRequest;
 import com.yusufnazim.deliverydispatch.auth.dto.RegisterCustomerResponse;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -24,5 +26,10 @@ public class AuthController {
 	public RegisterCustomerResponse registerCustomer(@Valid @RequestBody RegisterCustomerRequest request) {
 		User user = authService.registerCustomer(request);
 		return RegisterCustomerResponse.from(user);
+	}
+
+	@PostMapping("/login")
+	public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+		return authService.login(request);
 	}
 }
