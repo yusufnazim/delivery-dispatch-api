@@ -15,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,7 +48,7 @@ class JwtBearerAuthenticationTest {
 
     @Test
     void protectedEndpointAcceptsValidBearerToken() throws Exception {
-        String token = jwtTokenService.generateToken(user());
+        String token = jwtTokenService.generateToken(user(Role.CUSTOMER));
 
         mockMvc.perform(get("/api/v1/test/protected")
                         .header("Authorization", "Bearer " + token))
@@ -55,11 +56,30 @@ class JwtBearerAuthenticationTest {
                 .andExpect(content().string("protected"));
     }
 
-    private User user() {
+    @Test
+    void roleProtectedEndpointAcceptsMatchingRoleClaim() throws Exception {
+        String token = jwtTokenService.generateToken(user(Role.CUSTOMER));
+
+        mockMvc.perform(get("/api/v1/test/customer")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(content().string("customer"));
+    }
+
+    @Test
+    void roleProtectedEndpointRejectsDifferentRoleClaim() throws Exception {
+        String token = jwtTokenService.generateToken(user(Role.COURIER));
+
+        mockMvc.perform(get("/api/v1/test/customer")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    private User user(Role role) {
         User user = mock(User.class);
         when(user.getId()).thenReturn(1L);
         when(user.getEmail()).thenReturn("customer@example.com");
-        when(user.getRole()).thenReturn(Role.CUSTOMER);
+        when(user.getRole()).thenReturn(role);
         return user;
     }
 
@@ -78,6 +98,12 @@ class JwtBearerAuthenticationTest {
         @GetMapping("/api/v1/test/protected")
         String protectedEndpoint() {
             return "protected";
+        }
+
+        @PreAuthorize("hasRole('CUSTOMER')")
+        @GetMapping("/api/v1/test/customer")
+        String customerEndpoint() {
+            return "customer";
         }
     }
 }
