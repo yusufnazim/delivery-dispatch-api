@@ -4,6 +4,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.yusufnazim.deliverydispatch.security.JwtTokenService;
@@ -34,16 +35,18 @@ class JwtBearerAuthenticationTest {
     }
 
     @Test
-    void protectedEndpointRejectsMissingBearerToken() throws Exception {
+    void protectedEndpointReturnsJsonForMissingBearerToken() throws Exception {
         mockMvc.perform(get("/api/v1/test/protected"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
     }
 
     @Test
-    void protectedEndpointRejectsInvalidBearerToken() throws Exception {
+    void protectedEndpointReturnsJsonForInvalidBearerToken() throws Exception {
         mockMvc.perform(get("/api/v1/test/protected")
                         .header("Authorization", "Bearer invalid-token"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
     }
 
     @Test
@@ -67,12 +70,13 @@ class JwtBearerAuthenticationTest {
     }
 
     @Test
-    void roleProtectedEndpointRejectsDifferentRoleClaim() throws Exception {
+    void roleProtectedEndpointReturnsJsonForDifferentRoleClaim() throws Exception {
         String token = jwtTokenService.generateToken(user(Role.COURIER));
 
         mockMvc.perform(get("/api/v1/test/customer")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
     private User user(Role role) {

@@ -3,6 +3,7 @@ package com.yusufnazim.deliverydispatch.config;
 import java.util.Collection;
 import java.util.List;
 
+import com.yusufnazim.deliverydispatch.security.SecurityErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -26,7 +27,8 @@ public class SecurityConfig {
 	@Bean
 	SecurityFilterChain securityFilterChain(
 			HttpSecurity http,
-			JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
+			JwtAuthenticationConverter jwtAuthenticationConverter,
+			SecurityErrorHandler securityErrorHandler) throws Exception {
 		return http
 				.csrf(AbstractHttpConfigurer::disable)
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -43,8 +45,12 @@ public class SecurityConfig {
 						.anyRequest().authenticated())
 				.httpBasic(AbstractHttpConfigurer::disable)
 				.formLogin(AbstractHttpConfigurer::disable)
-				.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
-						.jwtAuthenticationConverter(jwtAuthenticationConverter)))
+				.exceptionHandling(exception -> exception
+						.authenticationEntryPoint(securityErrorHandler)
+						.accessDeniedHandler(securityErrorHandler))
+				.oauth2ResourceServer(oauth2 -> oauth2
+						.authenticationEntryPoint(securityErrorHandler)
+						.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
 				.build();
 	}
 
