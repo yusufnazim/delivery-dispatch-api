@@ -1,6 +1,7 @@
 package com.yusufnazim.deliverydispatch.exception;
 
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
+import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,6 +22,12 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	public ApiErrorResponse handleInvalidLoginCredentials(InvalidLoginCredentialsException exception) {
 		return new ApiErrorResponse("INVALID_LOGIN_CREDENTIALS", exception.getMessage());
+	}
+
+	@ExceptionHandler(InvalidManagedUserRoleException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ApiErrorResponse handleInvalidManagedUserRole(InvalidManagedUserRoleException exception) {
+		return new ApiErrorResponse("INVALID_MANAGED_USER_ROLE", exception.getMessage());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

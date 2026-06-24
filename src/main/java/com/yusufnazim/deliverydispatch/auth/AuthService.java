@@ -1,9 +1,11 @@
 package com.yusufnazim.deliverydispatch.auth;
 
+import com.yusufnazim.deliverydispatch.auth.dto.AdminCreateUserRequest;
 import com.yusufnazim.deliverydispatch.auth.dto.LoginRequest;
 import com.yusufnazim.deliverydispatch.auth.dto.LoginResponse;
 import com.yusufnazim.deliverydispatch.auth.dto.RegisterCustomerRequest;
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
+import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.security.JwtTokenService;
 import com.yusufnazim.deliverydispatch.user.Role;
@@ -36,6 +38,24 @@ public class AuthService {
         return userRepository.save(user);
     }
 
+    @Transactional
+    public User createManagedUser(AdminCreateUserRequest request) {
+        Role role = request.role();
+        if (!isManagedUserRole(role)) {
+            throw new InvalidManagedUserRoleException(role);
+        }
+
+        String email = normalizeEmail(request.email());
+        if (userRepository.existsByEmail(email)) {
+            throw new EmailAlreadyRegisteredException(email);
+        }
+
+        String passwordHash = passwordEncoder.encode(request.password());
+        User user = new User(email, passwordHash, role);
+
+        return userRepository.save(user);
+    }
+
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
@@ -52,5 +72,9 @@ public class AuthService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isManagedUserRole(Role role) {
+        return role == Role.DISPATCHER || role == Role.COURIER;
     }
 }

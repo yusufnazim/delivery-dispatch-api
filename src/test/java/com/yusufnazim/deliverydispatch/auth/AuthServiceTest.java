@@ -7,10 +7,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.yusufnazim.deliverydispatch.auth.dto.AdminCreateUserRequest;
 import com.yusufnazim.deliverydispatch.auth.dto.LoginRequest;
 import com.yusufnazim.deliverydispatch.auth.dto.LoginResponse;
 import com.yusufnazim.deliverydispatch.auth.dto.RegisterCustomerRequest;
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
+import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.security.JwtTokenService;
 import com.yusufnazim.deliverydispatch.user.Role;
@@ -72,6 +74,77 @@ class AuthServiceTest {
                 .isInstanceOf(EmailAlreadyRegisteredException.class)
                 .hasMessageContaining("customer@example.com");
 
+        verify(passwordEncoder, never()).encode(any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void createManagedUserCreatesDispatcherWithHashedPassword() {
+        AdminCreateUserRequest request = new AdminCreateUserRequest(
+                "Dispatcher@Example.COM ",
+                "StrongPass123",
+                Role.DISPATCHER);
+        when(userRepository.existsByEmail("dispatcher@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("StrongPass123")).thenReturn("hashed-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User createdUser = authService.createManagedUser(request);
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        User savedUser = userCaptor.getValue();
+
+        assertThat(savedUser.getEmail()).isEqualTo("dispatcher@example.com");
+        assertThat(savedUser.getPasswordHash()).isEqualTo("hashed-password");
+        assertThat(savedUser.getRole()).isEqualTo(Role.DISPATCHER);
+        assertThat(createdUser).isSameAs(savedUser);
+    }
+
+    @Test
+    void createManagedUserCreatesCourierWithRequestedRole() {
+        AdminCreateUserRequest request = new AdminCreateUserRequest(
+                "courier@example.com",
+                "StrongPass123",
+                Role.COURIER);
+        when(userRepository.existsByEmail("courier@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("StrongPass123")).thenReturn("hashed-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User createdUser = authService.createManagedUser(request);
+
+        assertThat(createdUser.getEmail()).isEqualTo("courier@example.com");
+        assertThat(createdUser.getPasswordHash()).isEqualTo("hashed-password");
+        assertThat(createdUser.getRole()).isEqualTo(Role.COURIER);
+    }
+
+    @Test
+    void createManagedUserRejectsDuplicateEmail() {
+        AdminCreateUserRequest request = new AdminCreateUserRequest(
+                "dispatcher@example.com",
+                "StrongPass123",
+                Role.DISPATCHER);
+        when(userRepository.existsByEmail("dispatcher@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.createManagedUser(request))
+                .isInstanceOf(EmailAlreadyRegisteredException.class)
+                .hasMessageContaining("dispatcher@example.com");
+
+        verify(passwordEncoder, never()).encode(any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void createManagedUserRejectsCustomerRole() {
+        AdminCreateUserRequest request = new AdminCreateUserRequest(
+                "customer@example.com",
+                "StrongPass123",
+                Role.CUSTOMER);
+
+        assertThatThrownBy(() -> authService.createManagedUser(request))
+                .isInstanceOf(InvalidManagedUserRoleException.class)
+                .hasMessageContaining("CUSTOMER");
+
+        verify(userRepository, never()).existsByEmail(any());
         verify(passwordEncoder, never()).encode(any());
         verify(userRepository, never()).save(any());
     }
