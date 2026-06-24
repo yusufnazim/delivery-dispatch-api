@@ -1,4 +1,5 @@
 @baseUrl = http://localhost:8080
+@adminToken = replace-with-admin-jwt
 
 ### Health check
 GET {{baseUrl}}/actuator/health
@@ -13,6 +14,17 @@ Content-Type: application/json
 {
   "email": "customer@example.com",
   "password": "StrongPass123"
+}
+
+### Create dispatcher user
+POST {{baseUrl}}/api/v1/auth/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "email": "dispatcher@example.com",
+  "password": "StrongPass123",
+  "role": "DISPATCHER"
 }
 
 ### Login
