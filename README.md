@@ -58,4 +58,39 @@ http://localhost:8080/v3/api-docs
 
 Runnable HTTP examples are kept in `api-tests.http`.
 
-The API will expose versioned endpoints under `/api/v1` as features are implemented.
+Application endpoints use versioned paths under `/api/v1`.
+
+## Authentication
+
+The API currently supports JWT-based authentication for the delivery dispatch user model.
+
+| Method | Path | Access | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/auth/register` | Public | Register a customer account. |
+| `POST` | `/api/v1/auth/login` | Public | Log in with email and password and receive a JWT. |
+| `POST` | `/api/v1/auth/users` | `ADMIN` only | Create dispatcher or courier accounts. |
+
+Registration and login normalize email addresses by trimming whitespace and lowercasing them. Passwords are stored with BCrypt hashes, not plaintext values.
+
+JWTs include the authenticated user's role. Protected endpoints expect the token in this format:
+
+```text
+Authorization: Bearer <jwt>
+```
+
+The managed user creation endpoint requires an existing admin token and only accepts `DISPATCHER` or `COURIER` as the new user's role. Customer accounts are created through `/api/v1/auth/register`.
+
+Auth errors use structured JSON responses:
+
+- `400 Bad Request` for validation failures.
+- `401 Unauthorized` for missing or invalid credentials.
+- `403 Forbidden` for authenticated users without the required role.
+- `409 Conflict` for duplicate email addresses.
+
+JWT settings are configured through `app.jwt` properties:
+
+- `JWT_SECRET` must be set outside local development and must be at least 32 characters.
+- `JWT_ISSUER` defaults to `delivery-dispatch-api`.
+- `JWT_EXPIRATION` defaults to `1h`.
+
+The `local` profile provides a development-only JWT secret so the API can run locally without production secrets.
