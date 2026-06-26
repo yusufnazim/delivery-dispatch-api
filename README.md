@@ -36,6 +36,18 @@ Start local PostgreSQL:
 docker compose up -d postgres
 ```
 
+If port `5432` is already in use locally, start PostgreSQL on another host port:
+
+```bash
+POSTGRES_PORT=5433 docker compose up -d postgres
+```
+
+Then run the API with the same port:
+
+```bash
+POSTGRES_PORT=5433 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
 Stop local PostgreSQL:
 
 ```bash

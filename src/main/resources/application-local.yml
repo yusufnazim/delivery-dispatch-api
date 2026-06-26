@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/delivery_dispatch
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/delivery_dispatch
     username: delivery_dispatch
     password: delivery_dispatch
   flyway:
