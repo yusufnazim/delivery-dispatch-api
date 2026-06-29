@@ -9,10 +9,12 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Customer registration, login, JWT generation, JWT bearer authentication, and structured auth error responses.
 - Admin-only managed user creation for dispatcher and courier accounts.
 - Delivery order persistence model with customer and courier links, explicit order status values, pickup/dropoff coordinates, optimistic versioning, and Flyway schema migration.
+- Delivery order creation request and response DTOs with address and coordinate validation.
 
 ## Remaining
 
-- Customer order creation, lookup, listing, and cancellation endpoints.
+- Customer order creation service and endpoint.
+- Order lookup, listing, and cancellation endpoints.
 - Courier profile, availability, and location update workflow.
 - Auto-dispatch and manual assignment rules.
 - Delivery lifecycle transitions and timeline records.
