@@ -1,5 +1,6 @@
 @baseUrl = http://localhost:8080
 @adminToken = replace-with-admin-jwt
+@customerToken = replace-with-customer-jwt
 
 ### Health check
 GET {{baseUrl}}/actuator/health
@@ -34,4 +35,18 @@ Content-Type: application/json
 {
   "email": "customer@example.com",
   "password": "StrongPass123"
+}
+
+### Create delivery order
+POST {{baseUrl}}/api/v1/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "pickupAddress": "Istiklal Cd. No:1, Beyoglu",
+  "pickupLatitude": 41.036900,
+  "pickupLongitude": 28.985000,
+  "dropoffAddress": "Bagdat Cd. No:10, Kadikoy",
+  "dropoffLatitude": 40.970000,
+  "dropoffLongitude": 29.057000
 }
