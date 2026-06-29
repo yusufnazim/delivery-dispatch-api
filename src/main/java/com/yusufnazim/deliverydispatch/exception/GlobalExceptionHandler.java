@@ -3,6 +3,7 @@ package com.yusufnazim.deliverydispatch.exception;
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
+import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,6 +29,12 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	public ApiErrorResponse handleInvalidManagedUserRole(InvalidManagedUserRoleException exception) {
 		return new ApiErrorResponse("INVALID_MANAGED_USER_ROLE", exception.getMessage());
+	}
+
+	@ExceptionHandler(CustomerNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ApiErrorResponse handleCustomerNotFound(CustomerNotFoundException exception) {
+		return new ApiErrorResponse("CUSTOMER_NOT_FOUND", exception.getMessage());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

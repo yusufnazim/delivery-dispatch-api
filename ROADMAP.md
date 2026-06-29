@@ -10,10 +10,11 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Admin-only managed user creation for dispatcher and courier accounts.
 - Delivery order persistence model with customer and courier links, explicit order status values, pickup/dropoff coordinates, optimistic versioning, and Flyway schema migration.
 - Delivery order creation request and response DTOs with address and coordinate validation.
+- Customer order creation service that saves pending orders for authenticated customer ids.
 
 ## Remaining
 
-- Customer order creation service and endpoint.
+- Customer order creation endpoint.
 - Order lookup, listing, and cancellation endpoints.
 - Courier profile, availability, and location update workflow.
 - Auto-dispatch and manual assignment rules.
