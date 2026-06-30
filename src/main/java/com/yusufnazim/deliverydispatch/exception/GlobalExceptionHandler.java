@@ -4,6 +4,7 @@ import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredExce
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
+import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -35,6 +36,12 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ApiErrorResponse handleCustomerNotFound(CustomerNotFoundException exception) {
 		return new ApiErrorResponse("CUSTOMER_NOT_FOUND", exception.getMessage());
+	}
+
+	@ExceptionHandler(OrderNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ApiErrorResponse handleOrderNotFound(OrderNotFoundException exception) {
+		return new ApiErrorResponse("ORDER_NOT_FOUND", exception.getMessage());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

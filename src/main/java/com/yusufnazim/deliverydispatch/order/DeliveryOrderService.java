@@ -3,8 +3,10 @@ package com.yusufnazim.deliverydispatch.order;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
+import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,5 +35,20 @@ public class DeliveryOrderService {
         DeliveryOrder savedOrder = deliveryOrderRepository.save(order);
 
         return DeliveryOrderResponse.from(savedOrder);
+    }
+
+    @Transactional(readOnly = true)
+    public DeliveryOrderResponse getCustomerOrder(Long customerId, Long orderId) {
+        DeliveryOrder order = deliveryOrderRepository.findByIdAndCustomerId(orderId, customerId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        return DeliveryOrderResponse.from(order);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeliveryOrderResponse> listCustomerOrders(Long customerId) {
+        return deliveryOrderRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(customerId).stream()
+                .map(DeliveryOrderResponse::from)
+                .toList();
     }
 }
