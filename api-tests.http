@@ -50,3 +50,11 @@ Content-Type: application/json
   "dropoffLatitude": 40.970000,
   "dropoffLongitude": 29.057000
 }
+
+### List customer delivery orders
+GET {{baseUrl}}/api/v1/orders
+Authorization: Bearer {{customerToken}}
+
+### Get customer delivery order
+GET {{baseUrl}}/api/v1/orders/1
+Authorization: Bearer {{customerToken}}
