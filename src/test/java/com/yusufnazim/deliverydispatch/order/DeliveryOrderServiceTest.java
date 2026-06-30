@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
+import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -24,6 +25,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class DeliveryOrderServiceTest {
@@ -130,6 +132,38 @@ class DeliveryOrderServiceTest {
                 .containsExactly("Pickup B", "Pickup A");
     }
 
+    @Test
+    void cancelCustomerOrderCancelsOwnedPendingOrder() {
+        DeliveryOrder order = realOrder();
+        when(deliveryOrderRepository.findByIdAndCustomerId(11L, 7L)).thenReturn(Optional.of(order));
+
+        DeliveryOrderResponse response = deliveryOrderService.cancelCustomerOrder(7L, 11L);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(response.status()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(response.pickupAddress()).isEqualTo("Istiklal Cd. No:1, Beyoglu");
+    }
+
+    @Test
+    void cancelCustomerOrderRejectsMissingOrUnownedOrder() {
+        when(deliveryOrderRepository.findByIdAndCustomerId(99L, 7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> deliveryOrderService.cancelCustomerOrder(7L, 99L))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessage("Order not found: 99");
+    }
+
+    @Test
+    void cancelCustomerOrderRejectsNonPendingOrder() {
+        DeliveryOrder order = realOrder();
+        ReflectionTestUtils.setField(order, "status", OrderStatus.ASSIGNED);
+        when(deliveryOrderRepository.findByIdAndCustomerId(11L, 7L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> deliveryOrderService.cancelCustomerOrder(7L, 11L))
+                .isInstanceOf(OrderCancellationNotAllowedException.class)
+                .hasMessage("Order cannot be cancelled from status: ASSIGNED");
+    }
+
     private CreateDeliveryOrderRequest validRequest() {
         return new CreateDeliveryOrderRequest(
                 "Istiklal Cd. No:1, Beyoglu",
@@ -152,6 +186,20 @@ class DeliveryOrderServiceTest {
         when(order.getDropoffLongitude()).thenReturn(new BigDecimal("29.057000"));
         when(order.getCreatedAt()).thenReturn(Instant.parse("2026-06-30T10:00:00Z"));
         when(order.getUpdatedAt()).thenReturn(Instant.parse("2026-06-30T10:05:00Z"));
+        return order;
+    }
+
+    private DeliveryOrder realOrder() {
+        User customer = new User("customer@example.com", "hashed-password", Role.CUSTOMER);
+        DeliveryOrder order = new DeliveryOrder(
+                customer,
+                "Istiklal Cd. No:1, Beyoglu",
+                new BigDecimal("41.036900"),
+                new BigDecimal("28.985000"),
+                "Bagdat Cd. No:10, Kadikoy",
+                new BigDecimal("40.970000"),
+                new BigDecimal("29.057000"));
+        order.onCreate();
         return order;
     }
 }

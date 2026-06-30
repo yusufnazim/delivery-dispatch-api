@@ -51,4 +51,14 @@ public class DeliveryOrderService {
                 .map(DeliveryOrderResponse::from)
                 .toList();
     }
+
+    @Transactional
+    public DeliveryOrderResponse cancelCustomerOrder(Long customerId, Long orderId) {
+        DeliveryOrder order = deliveryOrderRepository.findByIdAndCustomerId(orderId, customerId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        order.cancel();
+
+        return DeliveryOrderResponse.from(order);
+    }
 }

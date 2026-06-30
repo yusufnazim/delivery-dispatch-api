@@ -4,6 +4,7 @@ import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredExce
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
+import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -42,6 +43,12 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ApiErrorResponse handleOrderNotFound(OrderNotFoundException exception) {
 		return new ApiErrorResponse("ORDER_NOT_FOUND", exception.getMessage());
+	}
+
+	@ExceptionHandler(OrderCancellationNotAllowedException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ApiErrorResponse handleOrderCancellationNotAllowed(OrderCancellationNotAllowedException exception) {
+		return new ApiErrorResponse("ORDER_CANCELLATION_NOT_ALLOWED", exception.getMessage());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

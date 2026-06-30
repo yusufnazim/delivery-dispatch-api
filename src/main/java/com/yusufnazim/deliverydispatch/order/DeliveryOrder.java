@@ -1,5 +1,6 @@
 package com.yusufnazim.deliverydispatch.order;
 
+import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -102,6 +103,14 @@ public class DeliveryOrder {
         this.dropoffAddress = dropoffAddress;
         this.dropoffLatitude = dropoffLatitude;
         this.dropoffLongitude = dropoffLongitude;
+    }
+
+    public void cancel() {
+        if (status != OrderStatus.PENDING) {
+            throw new OrderCancellationNotAllowedException(status);
+        }
+
+        status = OrderStatus.CANCELLED;
     }
 
     @PrePersist
