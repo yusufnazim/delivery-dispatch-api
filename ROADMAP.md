@@ -15,10 +15,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Customer order lookup and listing service with ownership-safe not-found behavior.
 - Customer order lookup and listing endpoints restricted to authenticated customers.
 - Customer order cancellation service for owned pending orders.
+- Customer order cancellation endpoint restricted to authenticated customers.
 
 ## Remaining
 
-- Order cancellation endpoint.
 - Courier profile, availability, and location update workflow.
 - Auto-dispatch and manual assignment rules.
 - Delivery lifecycle transitions and timeline records.

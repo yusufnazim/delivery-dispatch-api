@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
+import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.security.JwtTokenService;
 import com.yusufnazim.deliverydispatch.user.Role;
@@ -178,6 +180,62 @@ class DeliveryOrderControllerTest {
     }
 
     @Test
+    void cancelOrderReturnsCancelledOrderForCustomer() throws Exception {
+        DeliveryOrderResponse response = orderResponse(11L, "Pickup A", OrderStatus.CANCELLED);
+        when(deliveryOrderService.cancelCustomerOrder(7L, 11L)).thenReturn(response);
+
+        mockMvc.perform(delete("/api/v1/orders/11")
+                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(11))
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.pickupAddress").value("Pickup A"));
+
+        verify(deliveryOrderService).cancelCustomerOrder(7L, 11L);
+    }
+
+    @Test
+    void cancelOrderReturnsNotFoundForMissingOrUnownedOrder() throws Exception {
+        when(deliveryOrderService.cancelCustomerOrder(eq(7L), eq(404L)))
+                .thenThrow(new OrderNotFoundException(404L));
+
+        mockMvc.perform(delete("/api/v1/orders/404")
+                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
+    }
+
+    @Test
+    void cancelOrderReturnsConflictForNonCancellableOrder() throws Exception {
+        when(deliveryOrderService.cancelCustomerOrder(eq(7L), eq(11L)))
+                .thenThrow(new OrderCancellationNotAllowedException(OrderStatus.ASSIGNED));
+
+        mockMvc.perform(delete("/api/v1/orders/11")
+                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ORDER_CANCELLATION_NOT_ALLOWED"));
+    }
+
+    @Test
+    void cancelOrderRejectsMissingBearerToken() throws Exception {
+        mockMvc.perform(delete("/api/v1/orders/11"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        verifyNoInteractions(deliveryOrderService);
+    }
+
+    @Test
+    void cancelOrderRejectsNonCustomerRole() throws Exception {
+        mockMvc.perform(delete("/api/v1/orders/11")
+                        .header("Authorization", bearerToken(9L, Role.DISPATCHER)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        verifyNoInteractions(deliveryOrderService);
+    }
+
+    @Test
     void listOrdersRejectsMissingBearerToken() throws Exception {
         mockMvc.perform(get("/api/v1/orders"))
                 .andExpect(status().isUnauthorized())
@@ -207,9 +265,13 @@ class DeliveryOrderControllerTest {
     }
 
     private DeliveryOrderResponse orderResponse(Long id, String pickupAddress) {
+        return orderResponse(id, pickupAddress, OrderStatus.PENDING);
+    }
+
+    private DeliveryOrderResponse orderResponse(Long id, String pickupAddress, OrderStatus status) {
         return new DeliveryOrderResponse(
                 id,
-                OrderStatus.PENDING,
+                status,
                 pickupAddress,
                 new BigDecimal("41.036900"),
                 new BigDecimal("28.985000"),

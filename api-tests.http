@@ -58,3 +58,7 @@ Authorization: Bearer {{customerToken}}
 ### Get customer delivery order
 GET {{baseUrl}}/api/v1/orders/1
 Authorization: Bearer {{customerToken}}
+
+### Cancel customer delivery order
+DELETE {{baseUrl}}/api/v1/orders/1
+Authorization: Bearer {{customerToken}}

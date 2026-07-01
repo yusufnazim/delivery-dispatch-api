@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -47,6 +48,14 @@ public class DeliveryOrderController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long orderId) {
         return deliveryOrderService.getCustomerOrder(userIdFrom(jwt), orderId);
+    }
+
+    @DeleteMapping("/{orderId}")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public DeliveryOrderResponse cancelOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+        return deliveryOrderService.cancelCustomerOrder(userIdFrom(jwt), orderId);
     }
 
     private Long userIdFrom(Jwt jwt) {
