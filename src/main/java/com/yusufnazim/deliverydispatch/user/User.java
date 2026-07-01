@@ -45,10 +45,29 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "courier_display_name", length = 120)
+    private String courierDisplayName;
+
+    @Column(name = "courier_phone_number", length = 32)
+    private String courierPhoneNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "courier_vehicle_type", length = 32)
+    private CourierVehicleType courierVehicleType;
+
     public User(String email, String passwordHash, Role role) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
+    }
+
+    public void updateCourierProfile(
+            String courierDisplayName,
+            String courierPhoneNumber,
+            CourierVehicleType courierVehicleType) {
+        this.courierDisplayName = courierDisplayName;
+        this.courierPhoneNumber = courierPhoneNumber;
+        this.courierVehicleType = courierVehicleType;
     }
 
     @PrePersist

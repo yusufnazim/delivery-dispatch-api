@@ -16,10 +16,11 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Customer order lookup and listing endpoints restricted to authenticated customers.
 - Customer order cancellation service for owned pending orders.
 - Customer order cancellation endpoint restricted to authenticated customers.
+- Courier profile fields persisted on user accounts with explicit Flyway schema support.
 
 ## Remaining
 
-- Courier profile, availability, and location update workflow.
+- Courier availability and location update workflow.
 - Auto-dispatch and manual assignment rules.
 - Delivery lifecycle transitions and timeline records.
 - PostgreSQL-backed integration coverage for dispatch and workflow conflict paths.
