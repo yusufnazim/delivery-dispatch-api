@@ -17,6 +17,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Customer order cancellation service for owned pending orders.
 - Customer order cancellation endpoint restricted to authenticated customers.
 - Courier profile fields persisted on user accounts with explicit Flyway schema support.
+- Courier availability status persisted with default `UNAVAILABLE` state for courier users.
 
 ## Remaining
 

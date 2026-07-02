@@ -52,6 +52,21 @@ class UserRepositoryTest {
         assertThat(foundCourier.getCourierDisplayName()).isEqualTo("Yusuf Courier");
         assertThat(foundCourier.getCourierPhoneNumber()).isEqualTo("+905551112233");
         assertThat(foundCourier.getCourierVehicleType()).isEqualTo(CourierVehicleType.MOTORBIKE);
+        assertThat(foundCourier.getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.UNAVAILABLE);
+    }
+
+    @Test
+    void savesCourierAvailabilityStatusUpdates() {
+        User courier = new User("available-courier@example.com", "hashed-password", Role.COURIER);
+        User savedCourier = userRepository.saveAndFlush(courier);
+        savedCourier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+
+        Long courierId = userRepository.saveAndFlush(savedCourier).getId();
+        entityManager.clear();
+
+        User foundCourier = userRepository.findById(courierId).orElseThrow();
+
+        assertThat(foundCourier.getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.AVAILABLE);
     }
 
     @Test
@@ -67,5 +82,6 @@ class UserRepositoryTest {
         assertThat(foundCustomer.getCourierDisplayName()).isNull();
         assertThat(foundCustomer.getCourierPhoneNumber()).isNull();
         assertThat(foundCustomer.getCourierVehicleType()).isNull();
+        assertThat(foundCustomer.getCourierAvailabilityStatus()).isNull();
     }
 }

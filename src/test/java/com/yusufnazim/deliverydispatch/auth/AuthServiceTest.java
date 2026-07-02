@@ -15,6 +15,7 @@ import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredExce
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.security.JwtTokenService;
+import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
@@ -60,6 +61,7 @@ class AuthServiceTest {
         assertThat(savedUser.getEmail()).isEqualTo("customer@example.com");
         assertThat(savedUser.getPasswordHash()).isEqualTo("hashed-password");
         assertThat(savedUser.getRole()).isEqualTo(Role.CUSTOMER);
+        assertThat(savedUser.getCourierAvailabilityStatus()).isNull();
         assertThat(registeredUser).isSameAs(savedUser);
     }
 
@@ -97,6 +99,7 @@ class AuthServiceTest {
         assertThat(savedUser.getEmail()).isEqualTo("dispatcher@example.com");
         assertThat(savedUser.getPasswordHash()).isEqualTo("hashed-password");
         assertThat(savedUser.getRole()).isEqualTo(Role.DISPATCHER);
+        assertThat(savedUser.getCourierAvailabilityStatus()).isNull();
         assertThat(createdUser).isSameAs(savedUser);
     }
 
@@ -115,6 +118,7 @@ class AuthServiceTest {
         assertThat(createdUser.getEmail()).isEqualTo("courier@example.com");
         assertThat(createdUser.getPasswordHash()).isEqualTo("hashed-password");
         assertThat(createdUser.getRole()).isEqualTo(Role.COURIER);
+        assertThat(createdUser.getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.UNAVAILABLE);
     }
 
     @Test

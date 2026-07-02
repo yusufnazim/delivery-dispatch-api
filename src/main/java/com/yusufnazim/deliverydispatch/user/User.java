@@ -55,10 +55,17 @@ public class User {
     @Column(name = "courier_vehicle_type", length = 32)
     private CourierVehicleType courierVehicleType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "courier_availability_status", length = 32)
+    private CourierAvailabilityStatus courierAvailabilityStatus;
+
     public User(String email, String passwordHash, Role role) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
+        if (role == Role.COURIER) {
+            this.courierAvailabilityStatus = CourierAvailabilityStatus.UNAVAILABLE;
+        }
     }
 
     public void updateCourierProfile(
@@ -68,6 +75,10 @@ public class User {
         this.courierDisplayName = courierDisplayName;
         this.courierPhoneNumber = courierPhoneNumber;
         this.courierVehicleType = courierVehicleType;
+    }
+
+    public void updateCourierAvailabilityStatus(CourierAvailabilityStatus courierAvailabilityStatus) {
+        this.courierAvailabilityStatus = courierAvailabilityStatus;
     }
 
     @PrePersist
