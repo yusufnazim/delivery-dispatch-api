@@ -1,6 +1,7 @@
 @baseUrl = http://localhost:8080
 @adminToken = replace-with-admin-jwt
 @customerToken = replace-with-customer-jwt
+@courierToken = replace-with-courier-jwt
 
 ### Health check
 GET {{baseUrl}}/actuator/health
@@ -62,3 +63,12 @@ Authorization: Bearer {{customerToken}}
 ### Cancel customer delivery order
 DELETE {{baseUrl}}/api/v1/orders/1
 Authorization: Bearer {{customerToken}}
+
+### Update courier availability
+PATCH {{baseUrl}}/api/v1/couriers/me/availability
+Authorization: Bearer {{courierToken}}
+Content-Type: application/json
+
+{
+  "status": "AVAILABLE"
+}

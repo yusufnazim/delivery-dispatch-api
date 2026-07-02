@@ -3,6 +3,8 @@ package com.yusufnazim.deliverydispatch.exception;
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
+import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
+import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
@@ -49,6 +51,19 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ApiErrorResponse handleOrderCancellationNotAllowed(OrderCancellationNotAllowedException exception) {
 		return new ApiErrorResponse("ORDER_CANCELLATION_NOT_ALLOWED", exception.getMessage());
+	}
+
+	@ExceptionHandler(CourierNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ApiErrorResponse handleCourierNotFound(CourierNotFoundException exception) {
+		return new ApiErrorResponse("COURIER_NOT_FOUND", exception.getMessage());
+	}
+
+	@ExceptionHandler(InvalidCourierAvailabilityStatusException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ApiErrorResponse handleInvalidCourierAvailabilityStatus(
+			InvalidCourierAvailabilityStatusException exception) {
+		return new ApiErrorResponse("INVALID_COURIER_AVAILABILITY_STATUS", exception.getMessage());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
