@@ -11,6 +11,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -59,6 +60,12 @@ public class User {
     @Column(name = "courier_availability_status", length = 32)
     private CourierAvailabilityStatus courierAvailabilityStatus;
 
+    @Column(name = "courier_latitude", precision = 8, scale = 6)
+    private BigDecimal courierLatitude;
+
+    @Column(name = "courier_longitude", precision = 9, scale = 6)
+    private BigDecimal courierLongitude;
+
     public User(String email, String passwordHash, Role role) {
         this.email = email;
         this.passwordHash = passwordHash;
@@ -79,6 +86,11 @@ public class User {
 
     public void updateCourierAvailabilityStatus(CourierAvailabilityStatus courierAvailabilityStatus) {
         this.courierAvailabilityStatus = courierAvailabilityStatus;
+    }
+
+    public void updateCourierLocation(BigDecimal courierLatitude, BigDecimal courierLongitude) {
+        this.courierLatitude = courierLatitude;
+        this.courierLongitude = courierLongitude;
     }
 
     @PrePersist

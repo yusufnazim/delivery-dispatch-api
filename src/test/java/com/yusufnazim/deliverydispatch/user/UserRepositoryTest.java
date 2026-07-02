@@ -2,6 +2,7 @@ package com.yusufnazim.deliverydispatch.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -70,6 +71,21 @@ class UserRepositoryTest {
     }
 
     @Test
+    void savesCourierLocationFields() {
+        User courier = new User("location-courier@example.com", "hashed-password", Role.COURIER);
+        courier.updateCourierLocation(new BigDecimal("41.008200"), new BigDecimal("28.978400"));
+
+        User savedCourier = userRepository.saveAndFlush(courier);
+        Long courierId = savedCourier.getId();
+        entityManager.clear();
+
+        User foundCourier = userRepository.findById(courierId).orElseThrow();
+
+        assertThat(foundCourier.getCourierLatitude()).isEqualByComparingTo("41.008200");
+        assertThat(foundCourier.getCourierLongitude()).isEqualByComparingTo("28.978400");
+    }
+
+    @Test
     void savesNonCourierUserWithoutCourierProfileFields() {
         User customer = new User("customer@example.com", "hashed-password", Role.CUSTOMER);
 
@@ -83,5 +99,7 @@ class UserRepositoryTest {
         assertThat(foundCustomer.getCourierPhoneNumber()).isNull();
         assertThat(foundCustomer.getCourierVehicleType()).isNull();
         assertThat(foundCustomer.getCourierAvailabilityStatus()).isNull();
+        assertThat(foundCustomer.getCourierLatitude()).isNull();
+        assertThat(foundCustomer.getCourierLongitude()).isNull();
     }
 }

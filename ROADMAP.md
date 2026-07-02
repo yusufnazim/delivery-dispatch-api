@@ -19,6 +19,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Courier profile fields persisted on user accounts with explicit Flyway schema support.
 - Courier availability status persisted with default `UNAVAILABLE` state for courier users.
 - Courier availability update endpoint restricted to authenticated couriers.
+- Optional courier latitude and longitude fields persisted with explicit Flyway schema support.
 
 ## Remaining
 
