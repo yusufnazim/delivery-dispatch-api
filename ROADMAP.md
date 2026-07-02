@@ -20,10 +20,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Courier availability status persisted with default `UNAVAILABLE` state for courier users.
 - Courier availability update endpoint restricted to authenticated couriers.
 - Optional courier latitude and longitude fields persisted with explicit Flyway schema support.
+- Courier location update endpoint restricted to authenticated couriers.
 
 ## Remaining
 
-- Courier location update workflow.
 - Auto-dispatch and manual assignment rules.
 - Delivery lifecycle transitions and timeline records.
 - PostgreSQL-backed integration coverage for dispatch and workflow conflict paths.

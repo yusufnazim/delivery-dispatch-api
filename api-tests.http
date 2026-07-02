@@ -72,3 +72,13 @@ Content-Type: application/json
 {
   "status": "AVAILABLE"
 }
+
+### Update courier location
+PATCH {{baseUrl}}/api/v1/couriers/me/location
+Authorization: Bearer {{courierToken}}
+Content-Type: application/json
+
+{
+  "latitude": 41.008200,
+  "longitude": 28.978400
+}

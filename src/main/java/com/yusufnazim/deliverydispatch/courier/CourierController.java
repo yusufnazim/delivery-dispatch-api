@@ -1,7 +1,9 @@
 package com.yusufnazim.deliverydispatch.courier;
 
 import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
+import com.yusufnazim.deliverydispatch.courier.dto.CourierLocationResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierAvailabilityRequest;
+import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierLocationRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,6 +29,14 @@ public class CourierController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody UpdateCourierAvailabilityRequest request) {
         return courierService.updateAvailability(userIdFrom(jwt), request.status());
+    }
+
+    @PatchMapping("/me/location")
+    @PreAuthorize("hasRole('COURIER')")
+    public CourierLocationResponse updateLocation(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody UpdateCourierLocationRequest request) {
+        return courierService.updateLocation(userIdFrom(jwt), request.latitude(), request.longitude());
     }
 
     private Long userIdFrom(Jwt jwt) {

@@ -9,11 +9,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
+import com.yusufnazim.deliverydispatch.courier.dto.CourierLocationResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierAvailabilityRequest;
+import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierLocationRequest;
 import com.yusufnazim.deliverydispatch.security.JwtTokenService;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -93,6 +96,73 @@ class CourierControllerTest {
                 new UpdateCourierAvailabilityRequest(CourierAvailabilityStatus.AVAILABLE);
 
         mockMvc.perform(patch("/api/v1/couriers/me/availability")
+                        .header("Authorization", bearerToken(9L, Role.CUSTOMER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        verifyNoInteractions(courierService);
+    }
+
+    @Test
+    void updateLocationReturnsUpdatedCoordinatesForCourier() throws Exception {
+        UpdateCourierLocationRequest request = new UpdateCourierLocationRequest(
+                new BigDecimal("41.008200"),
+                new BigDecimal("28.978400"));
+        when(courierService.updateLocation(7L, request.latitude(), request.longitude()))
+                .thenReturn(new CourierLocationResponse(7L, request.latitude(), request.longitude()));
+
+        mockMvc.perform(patch("/api/v1/couriers/me/location")
+                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.courierId").value(7))
+                .andExpect(jsonPath("$.latitude").value(41.008200))
+                .andExpect(jsonPath("$.longitude").value(28.978400));
+
+        verify(courierService).updateLocation(7L, request.latitude(), request.longitude());
+    }
+
+    @Test
+    void updateLocationRejectsOutOfRangeCoordinates() throws Exception {
+        UpdateCourierLocationRequest request = new UpdateCourierLocationRequest(
+                new BigDecimal("91.000000"),
+                new BigDecimal("28.978400"));
+
+        mockMvc.perform(patch("/api/v1/couriers/me/location")
+                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+        verifyNoInteractions(courierService);
+    }
+
+    @Test
+    void updateLocationRejectsMissingBearerToken() throws Exception {
+        UpdateCourierLocationRequest request = new UpdateCourierLocationRequest(
+                new BigDecimal("41.008200"),
+                new BigDecimal("28.978400"));
+
+        mockMvc.perform(patch("/api/v1/couriers/me/location")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        verifyNoInteractions(courierService);
+    }
+
+    @Test
+    void updateLocationRejectsNonCourierRole() throws Exception {
+        UpdateCourierLocationRequest request = new UpdateCourierLocationRequest(
+                new BigDecimal("41.008200"),
+                new BigDecimal("28.978400"));
+
+        mockMvc.perform(patch("/api/v1/couriers/me/location")
                         .header("Authorization", bearerToken(9L, Role.CUSTOMER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
