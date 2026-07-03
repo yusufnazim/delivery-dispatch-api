@@ -77,6 +77,20 @@ class CourierControllerTest {
     }
 
     @Test
+    void updateAvailabilityRejectsMissingStatus() throws Exception {
+        String invalidRequest = "{}";
+
+        mockMvc.perform(patch("/api/v1/couriers/me/availability")
+                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequest))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+        verifyNoInteractions(courierService);
+    }
+
+    @Test
     void updateAvailabilityRejectsMissingBearerToken() throws Exception {
         UpdateCourierAvailabilityRequest request =
                 new UpdateCourierAvailabilityRequest(CourierAvailabilityStatus.AVAILABLE);
@@ -135,6 +149,24 @@ class CourierControllerTest {
                         .header("Authorization", bearerToken(7L, Role.COURIER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+        verifyNoInteractions(courierService);
+    }
+
+    @Test
+    void updateLocationRejectsMissingCoordinates() throws Exception {
+        String invalidRequest = """
+                {
+                  "latitude": 41.008200
+                }
+                """;
+
+        mockMvc.perform(patch("/api/v1/couriers/me/location")
+                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequest))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
 
