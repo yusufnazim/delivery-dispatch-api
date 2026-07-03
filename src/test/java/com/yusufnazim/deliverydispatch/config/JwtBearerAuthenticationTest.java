@@ -38,7 +38,9 @@ class JwtBearerAuthenticationTest {
     void protectedEndpointReturnsJsonForMissingBearerToken() throws Exception {
         mockMvc.perform(get("/api/v1/test/protected"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Authentication is required"));
     }
 
     @Test
@@ -46,7 +48,9 @@ class JwtBearerAuthenticationTest {
         mockMvc.perform(get("/api/v1/test/protected")
                         .header("Authorization", "Bearer invalid-token"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Authentication is required"));
     }
 
     @Test
@@ -76,7 +80,9 @@ class JwtBearerAuthenticationTest {
         mockMvc.perform(get("/api/v1/test/customer")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"))
+                .andExpect(jsonPath("$.message").value("Access is denied"));
     }
 
     private User user(Role role) {
