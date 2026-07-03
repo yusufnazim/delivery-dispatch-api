@@ -21,6 +21,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Courier availability update endpoint restricted to authenticated couriers.
 - Optional courier latitude and longitude fields persisted with explicit Flyway schema support.
 - Courier location update endpoint restricted to authenticated couriers.
+- Reusable Haversine distance calculator for dispatch decisions.
 
 ## Remaining
 
