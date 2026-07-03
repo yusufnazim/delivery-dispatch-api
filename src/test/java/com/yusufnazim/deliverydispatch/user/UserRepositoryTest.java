@@ -3,6 +3,7 @@ package com.yusufnazim.deliverydispatch.user;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -83,6 +84,41 @@ class UserRepositoryTest {
 
         assertThat(foundCourier.getCourierLatitude()).isEqualByComparingTo("41.008200");
         assertThat(foundCourier.getCourierLongitude()).isEqualByComparingTo("28.978400");
+    }
+
+    @Test
+    void findsOnlyEligibleCouriersForDispatch() {
+        User eligibleCourier = new User("eligible-courier@example.com", "hashed-password", Role.COURIER);
+        eligibleCourier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+        eligibleCourier.updateCourierLocation(new BigDecimal("41.008200"), new BigDecimal("28.978400"));
+
+        User unavailableCourier = new User("unavailable-courier@example.com", "hashed-password", Role.COURIER);
+        unavailableCourier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.UNAVAILABLE);
+        unavailableCourier.updateCourierLocation(new BigDecimal("41.010000"), new BigDecimal("28.980000"));
+
+        User onDeliveryCourier = new User("on-delivery-courier@example.com", "hashed-password", Role.COURIER);
+        onDeliveryCourier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.ON_DELIVERY);
+        onDeliveryCourier.updateCourierLocation(new BigDecimal("41.020000"), new BigDecimal("28.990000"));
+
+        User locationMissingCourier = new User("location-missing-courier@example.com", "hashed-password", Role.COURIER);
+        locationMissingCourier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+
+        User customer = new User("customer-without-courier-fields@example.com", "hashed-password", Role.CUSTOMER);
+
+        userRepository.saveAllAndFlush(List.of(
+                eligibleCourier,
+                unavailableCourier,
+                onDeliveryCourier,
+                locationMissingCourier,
+                customer));
+        entityManager.clear();
+
+        List<User> eligibleCouriers =
+                userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE);
+
+        assertThat(eligibleCouriers)
+                .extracting(User::getEmail)
+                .containsExactly("eligible-courier@example.com");
     }
 
     @Test
