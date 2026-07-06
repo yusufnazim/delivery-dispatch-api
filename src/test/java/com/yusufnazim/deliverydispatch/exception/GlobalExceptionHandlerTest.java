@@ -7,6 +7,7 @@ import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsExc
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
+import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
@@ -85,6 +86,13 @@ class GlobalExceptionHandlerTest {
                         method("handleNoEligibleCourier", NoEligibleCourierException.class),
                         new NoEligibleCourierException(15L),
                         "NO_ELIGIBLE_COURIER",
+                        HttpStatus.CONFLICT),
+                new DomainErrorCase(
+                        method(
+                                "handleCourierNotEligibleForDispatch",
+                                CourierNotEligibleForDispatchException.class),
+                        new CourierNotEligibleForDispatchException(9L, CourierAvailabilityStatus.UNAVAILABLE),
+                        "COURIER_NOT_ELIGIBLE_FOR_DISPATCH",
                         HttpStatus.CONFLICT),
                 new DomainErrorCase(
                         method("handleCourierNotFound", CourierNotFoundException.class),

@@ -1,5 +1,7 @@
 package com.yusufnazim.deliverydispatch.dispatch;
 
+import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
+import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
@@ -44,19 +46,46 @@ public class DispatchService {
 
     @Transactional
     public DeliveryOrder assignNearestEligibleCourier(Long orderId) {
+        DeliveryOrder order = findPendingOrderForAssignment(orderId);
+
+        User courier = findNearestEligibleCourier(order.getPickupLatitude(), order.getPickupLongitude())
+                .orElseThrow(() -> new NoEligibleCourierException(orderId));
+
+        assignCourier(order, courier);
+
+        return order;
+    }
+
+    @Transactional
+    public DeliveryOrder assignCourierToOrder(Long orderId, Long courierId) {
+        DeliveryOrder order = findPendingOrderForAssignment(orderId);
+        User courier = userRepository.findByIdAndRole(courierId, Role.COURIER)
+                .orElseThrow(() -> new CourierNotFoundException(courierId));
+        validateCourierEligibleForDispatch(courierId, courier);
+
+        assignCourier(order, courier);
+
+        return order;
+    }
+
+    private DeliveryOrder findPendingOrderForAssignment(Long orderId) {
         DeliveryOrder order = deliveryOrderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new OrderAssignmentNotAllowedException(order.getStatus());
         }
+        return order;
+    }
 
-        User courier = findNearestEligibleCourier(order.getPickupLatitude(), order.getPickupLongitude())
-                .orElseThrow(() -> new NoEligibleCourierException(orderId));
-
+    private void assignCourier(DeliveryOrder order, User courier) {
         order.assignCourier(courier);
         courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.ON_DELIVERY);
+    }
 
-        return order;
+    private void validateCourierEligibleForDispatch(Long courierId, User courier) {
+        if (courier.getCourierAvailabilityStatus() != CourierAvailabilityStatus.AVAILABLE) {
+            throw new CourierNotEligibleForDispatchException(courierId, courier.getCourierAvailabilityStatus());
+        }
     }
 
     private double distanceToPickup(User courier, BigDecimal pickupLatitude, BigDecimal pickupLongitude) {

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
+import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
@@ -124,6 +126,55 @@ class DispatchServiceTest {
         assertThatThrownBy(() -> dispatchService.assignNearestEligibleCourier(100L))
                 .isInstanceOf(NoEligibleCourierException.class)
                 .hasMessage("No eligible courier found for order: 100");
+    }
+
+    @Test
+    void assignCourierToOrderAssignsAvailableCourierToPendingOrder() {
+        DeliveryOrder order = order();
+        User courier = courierAt("courier@example.com", "41.037200", "28.985300");
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+
+        DeliveryOrder assignedOrder = dispatchService.assignCourierToOrder(100L, 7L);
+
+        assertThat(assignedOrder).isSameAs(order);
+        assertThat(assignedOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(assignedOrder.getCourier()).isEqualTo(courier);
+        assertThat(courier.getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
+    }
+
+    @Test
+    void assignCourierToOrderRejectsMissingOrNonCourierUser() {
+        DeliveryOrder order = order();
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findByIdAndRole(8L, Role.COURIER)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> dispatchService.assignCourierToOrder(100L, 8L))
+                .isInstanceOf(CourierNotFoundException.class)
+                .hasMessage("Courier not found: 8");
+    }
+
+    @Test
+    void assignCourierToOrderRejectsUnavailableCourier() {
+        DeliveryOrder order = order();
+        User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+
+        assertThatThrownBy(() -> dispatchService.assignCourierToOrder(100L, 7L))
+                .isInstanceOf(CourierNotEligibleForDispatchException.class)
+                .hasMessage("Courier is not eligible for dispatch: 7 with status: UNAVAILABLE");
+    }
+
+    @Test
+    void assignCourierToOrderRejectsNonPendingOrder() {
+        DeliveryOrder order = order();
+        order.cancel();
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> dispatchService.assignCourierToOrder(100L, 7L))
+                .isInstanceOf(OrderAssignmentNotAllowedException.class)
+                .hasMessage("Order cannot be assigned from status: CANCELLED");
     }
 
     private static User courierAt(String email, String latitude, String longitude) {

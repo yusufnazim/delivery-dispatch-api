@@ -5,6 +5,7 @@ import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleExce
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
+import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
@@ -65,6 +66,12 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ApiErrorResponse handleNoEligibleCourier(NoEligibleCourierException exception) {
 		return new ApiErrorResponse("NO_ELIGIBLE_COURIER", exception.getMessage());
+	}
+
+	@ExceptionHandler(CourierNotEligibleForDispatchException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ApiErrorResponse handleCourierNotEligibleForDispatch(CourierNotEligibleForDispatchException exception) {
+		return new ApiErrorResponse("COURIER_NOT_ELIGIBLE_FOR_DISPATCH", exception.getMessage());
 	}
 
 	@ExceptionHandler(CourierNotFoundException.class)
