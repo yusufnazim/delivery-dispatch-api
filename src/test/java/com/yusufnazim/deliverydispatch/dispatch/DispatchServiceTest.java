@@ -1,8 +1,15 @@
 package com.yusufnazim.deliverydispatch.dispatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
+import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
+import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
+import com.yusufnazim.deliverydispatch.order.OrderStatus;
+import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
+import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -20,13 +27,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class DispatchServiceTest {
 
     @Mock
+    private DeliveryOrderRepository deliveryOrderRepository;
+
+    @Mock
     private UserRepository userRepository;
 
     private DispatchService dispatchService;
 
     @BeforeEach
     void setUp() {
-        dispatchService = new DispatchService(userRepository, new HaversineDistanceCalculator());
+        dispatchService = new DispatchService(deliveryOrderRepository, userRepository, new HaversineDistanceCalculator());
     }
 
     @Test
@@ -67,10 +77,71 @@ class DispatchServiceTest {
         assertThat(nearestCourier).isEmpty();
     }
 
+    @Test
+    void assignNearestEligibleCourierAssignsNearestCourierToPendingOrder() {
+        DeliveryOrder order = order();
+        User farCourier = courierAt("far-courier@example.com", "40.991000", "29.024400");
+        User nearestCourier = courierAt("nearest-courier@example.com", "41.037200", "28.985300");
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE))
+                .thenReturn(List.of(farCourier, nearestCourier));
+
+        DeliveryOrder assignedOrder = dispatchService.assignNearestEligibleCourier(100L);
+
+        assertThat(assignedOrder).isSameAs(order);
+        assertThat(assignedOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(assignedOrder.getCourier()).isEqualTo(nearestCourier);
+        assertThat(nearestCourier.getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
+    }
+
+    @Test
+    void assignNearestEligibleCourierRejectsMissingOrder() {
+        when(deliveryOrderRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> dispatchService.assignNearestEligibleCourier(404L))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessage("Order not found: 404");
+    }
+
+    @Test
+    void assignNearestEligibleCourierRejectsNonPendingOrder() {
+        DeliveryOrder order = order();
+        order.cancel();
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> dispatchService.assignNearestEligibleCourier(100L))
+                .isInstanceOf(OrderAssignmentNotAllowedException.class)
+                .hasMessage("Order cannot be assigned from status: CANCELLED");
+    }
+
+    @Test
+    void assignNearestEligibleCourierRejectsWhenNoCourierIsEligible() {
+        DeliveryOrder order = order();
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> dispatchService.assignNearestEligibleCourier(100L))
+                .isInstanceOf(NoEligibleCourierException.class)
+                .hasMessage("No eligible courier found for order: 100");
+    }
+
     private static User courierAt(String email, String latitude, String longitude) {
         User courier = new User(email, "hashed-password", Role.COURIER);
         courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
         courier.updateCourierLocation(new BigDecimal(latitude), new BigDecimal(longitude));
         return courier;
+    }
+
+    private static DeliveryOrder order() {
+        User customer = new User("customer@example.com", "hashed-password", Role.CUSTOMER);
+        return new DeliveryOrder(
+                customer,
+                "Pickup",
+                new BigDecimal("41.036900"),
+                new BigDecimal("28.985000"),
+                "Dropoff",
+                new BigDecimal("40.970000"),
+                new BigDecimal("29.057000"));
     }
 }

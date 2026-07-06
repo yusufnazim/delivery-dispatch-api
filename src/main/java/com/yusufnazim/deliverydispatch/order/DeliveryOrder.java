@@ -1,5 +1,6 @@
 package com.yusufnazim.deliverydispatch.order;
 
+import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.user.User;
 import jakarta.persistence.Column;
@@ -20,6 +21,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -111,6 +113,15 @@ public class DeliveryOrder {
         }
 
         status = OrderStatus.CANCELLED;
+    }
+
+    public void assignCourier(User courier) {
+        if (status != OrderStatus.PENDING) {
+            throw new OrderAssignmentNotAllowedException(status);
+        }
+
+        this.courier = Objects.requireNonNull(courier, "courier must not be null");
+        status = OrderStatus.ASSIGNED;
     }
 
     @PrePersist

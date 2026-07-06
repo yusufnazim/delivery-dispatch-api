@@ -5,7 +5,9 @@ import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleExce
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
+import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
+import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -51,6 +53,18 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ApiErrorResponse handleOrderCancellationNotAllowed(OrderCancellationNotAllowedException exception) {
 		return new ApiErrorResponse("ORDER_CANCELLATION_NOT_ALLOWED", exception.getMessage());
+	}
+
+	@ExceptionHandler(OrderAssignmentNotAllowedException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ApiErrorResponse handleOrderAssignmentNotAllowed(OrderAssignmentNotAllowedException exception) {
+		return new ApiErrorResponse("ORDER_ASSIGNMENT_NOT_ALLOWED", exception.getMessage());
+	}
+
+	@ExceptionHandler(NoEligibleCourierException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ApiErrorResponse handleNoEligibleCourier(NoEligibleCourierException exception) {
+		return new ApiErrorResponse("NO_ELIGIBLE_COURIER", exception.getMessage());
 	}
 
 	@ExceptionHandler(CourierNotFoundException.class)

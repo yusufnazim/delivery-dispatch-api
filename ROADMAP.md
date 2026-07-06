@@ -24,10 +24,11 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Reusable Haversine distance calculator for dispatch decisions.
 - Eligible courier lookup for dispatch based on availability and known location.
 - Nearest eligible courier selection using pickup coordinates and Haversine distance.
+- Auto-dispatch service assignment that attaches the nearest eligible courier to a pending order.
 
 ## Remaining
 
-- Auto-dispatch assignment and manual assignment rules.
+- Manual assignment rules and assignment conflict safety.
 - Delivery lifecycle transitions and timeline records.
 - PostgreSQL-backed integration coverage for dispatch and workflow conflict paths.
 - Local demo kit with seed data, HTTP walkthrough, and concise README updates.

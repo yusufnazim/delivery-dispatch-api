@@ -3,6 +3,7 @@ package com.yusufnazim.deliverydispatch.order;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -47,6 +48,28 @@ class DeliveryOrderTest {
         assertThatThrownBy(order::cancel)
                 .isInstanceOf(OrderCancellationNotAllowedException.class)
                 .hasMessage("Order cannot be cancelled from status: ASSIGNED");
+    }
+
+    @Test
+    void assignCourierMovesPendingOrderToAssigned() {
+        DeliveryOrder order = order();
+        User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
+
+        order.assignCourier(courier);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(order.getCourier()).isEqualTo(courier);
+    }
+
+    @Test
+    void assignCourierRejectsNonPendingOrder() {
+        DeliveryOrder order = order();
+        order.cancel();
+        User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
+
+        assertThatThrownBy(() -> order.assignCourier(courier))
+                .isInstanceOf(OrderAssignmentNotAllowedException.class)
+                .hasMessage("Order cannot be assigned from status: CANCELLED");
     }
 
     private DeliveryOrder order() {

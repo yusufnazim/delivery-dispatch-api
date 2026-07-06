@@ -7,8 +7,10 @@ import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsExc
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
+import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
+import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
@@ -73,6 +75,16 @@ class GlobalExceptionHandlerTest {
                         method("handleOrderCancellationNotAllowed", OrderCancellationNotAllowedException.class),
                         new OrderCancellationNotAllowedException(OrderStatus.ASSIGNED),
                         "ORDER_CANCELLATION_NOT_ALLOWED",
+                        HttpStatus.CONFLICT),
+                new DomainErrorCase(
+                        method("handleOrderAssignmentNotAllowed", OrderAssignmentNotAllowedException.class),
+                        new OrderAssignmentNotAllowedException(OrderStatus.CANCELLED),
+                        "ORDER_ASSIGNMENT_NOT_ALLOWED",
+                        HttpStatus.CONFLICT),
+                new DomainErrorCase(
+                        method("handleNoEligibleCourier", NoEligibleCourierException.class),
+                        new NoEligibleCourierException(15L),
+                        "NO_ELIGIBLE_COURIER",
                         HttpStatus.CONFLICT),
                 new DomainErrorCase(
                         method("handleCourierNotFound", CourierNotFoundException.class),
