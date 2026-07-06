@@ -97,6 +97,28 @@ class DeliveryOrderRepositoryTest {
                 .containsExactly(secondOrder.getId(), firstOrder.getId());
     }
 
+    @Test
+    void detectsActiveDeliveryForCourier() {
+        User customer = userRepository.save(new User(
+                "active-delivery-customer@example.com",
+                "hashed-password",
+                Role.CUSTOMER));
+        User courier = userRepository.save(new User(
+                "active-delivery-courier@example.com",
+                "hashed-password",
+                Role.COURIER));
+        DeliveryOrder order = orderFor(customer, "Active pickup");
+        order.assignCourier(courier);
+        deliveryOrderRepository.saveAndFlush(order);
+        entityManager.clear();
+
+        boolean hasActiveDelivery = deliveryOrderRepository.existsByCourierIdAndStatusIn(
+                courier.getId(),
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP));
+
+        assertThat(hasActiveDelivery).isTrue();
+    }
+
     private DeliveryOrder orderFor(User customer, String pickupAddress) {
         return new DeliveryOrder(
                 customer,

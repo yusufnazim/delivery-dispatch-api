@@ -26,10 +26,11 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Nearest eligible courier selection using pickup coordinates and Haversine distance.
 - Auto-dispatch service assignment that attaches the nearest eligible courier to a pending order.
 - Manual dispatch service assignment for assigning a specific available courier to a pending order.
+- One-active-delivery enforcement for courier assignment.
 
 ## Remaining
 
-- Assignment conflict safety and one-active-delivery enforcement.
+- Assignment conflict safety and double-assignment prevention.
 - Delivery lifecycle transitions and timeline records.
 - PostgreSQL-backed integration coverage for dispatch and workflow conflict paths.
 - Local demo kit with seed data, HTTP walkthrough, and concise README updates.

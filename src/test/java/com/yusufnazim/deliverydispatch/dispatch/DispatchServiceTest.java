@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
+import com.yusufnazim.deliverydispatch.dispatch.exception.CourierAlreadyHasActiveDeliveryException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
@@ -44,7 +45,10 @@ class DispatchServiceTest {
     @Test
     void findEligibleCouriersLooksUpAvailableCouriersWithKnownLocations() {
         User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
-        when(userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE))
+        when(userRepository.findEligibleCouriersForDispatch(
+                Role.COURIER,
+                CourierAvailabilityStatus.AVAILABLE,
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
                 .thenReturn(List.of(courier));
 
         List<User> eligibleCouriers = dispatchService.findEligibleCouriers();
@@ -57,7 +61,10 @@ class DispatchServiceTest {
         User farCourier = courierAt("far-courier@example.com", "40.991000", "29.024400");
         User nearestCourier = courierAt("nearest-courier@example.com", "41.037200", "28.985300");
         User middleCourier = courierAt("middle-courier@example.com", "41.027000", "28.974000");
-        when(userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE))
+        when(userRepository.findEligibleCouriersForDispatch(
+                Role.COURIER,
+                CourierAvailabilityStatus.AVAILABLE,
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
                 .thenReturn(List.of(farCourier, nearestCourier, middleCourier));
 
         Optional<User> nearestCourierResult = dispatchService.findNearestEligibleCourier(
@@ -69,7 +76,10 @@ class DispatchServiceTest {
 
     @Test
     void findNearestEligibleCourierReturnsEmptyWhenNoCourierIsEligible() {
-        when(userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE))
+        when(userRepository.findEligibleCouriersForDispatch(
+                Role.COURIER,
+                CourierAvailabilityStatus.AVAILABLE,
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
                 .thenReturn(List.of());
 
         Optional<User> nearestCourier = dispatchService.findNearestEligibleCourier(
@@ -85,7 +95,10 @@ class DispatchServiceTest {
         User farCourier = courierAt("far-courier@example.com", "40.991000", "29.024400");
         User nearestCourier = courierAt("nearest-courier@example.com", "41.037200", "28.985300");
         when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
-        when(userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE))
+        when(userRepository.findEligibleCouriersForDispatch(
+                Role.COURIER,
+                CourierAvailabilityStatus.AVAILABLE,
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
                 .thenReturn(List.of(farCourier, nearestCourier));
 
         DeliveryOrder assignedOrder = dispatchService.assignNearestEligibleCourier(100L);
@@ -120,7 +133,10 @@ class DispatchServiceTest {
     void assignNearestEligibleCourierRejectsWhenNoCourierIsEligible() {
         DeliveryOrder order = order();
         when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
-        when(userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE))
+        when(userRepository.findEligibleCouriersForDispatch(
+                Role.COURIER,
+                CourierAvailabilityStatus.AVAILABLE,
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
                 .thenReturn(List.of());
 
         assertThatThrownBy(() -> dispatchService.assignNearestEligibleCourier(100L))
@@ -134,6 +150,10 @@ class DispatchServiceTest {
         User courier = courierAt("courier@example.com", "41.037200", "28.985300");
         when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
         when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+        when(deliveryOrderRepository.existsByCourierIdAndStatusIn(
+                7L,
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
+                .thenReturn(false);
 
         DeliveryOrder assignedOrder = dispatchService.assignCourierToOrder(100L, 7L);
 
@@ -164,6 +184,22 @@ class DispatchServiceTest {
         assertThatThrownBy(() -> dispatchService.assignCourierToOrder(100L, 7L))
                 .isInstanceOf(CourierNotEligibleForDispatchException.class)
                 .hasMessage("Courier is not eligible for dispatch: 7 with status: UNAVAILABLE");
+    }
+
+    @Test
+    void assignCourierToOrderRejectsCourierWithActiveDelivery() {
+        DeliveryOrder order = order();
+        User courier = courierAt("courier@example.com", "41.037200", "28.985300");
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+        when(deliveryOrderRepository.existsByCourierIdAndStatusIn(
+                7L,
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> dispatchService.assignCourierToOrder(100L, 7L))
+                .isInstanceOf(CourierAlreadyHasActiveDeliveryException.class)
+                .hasMessage("Courier already has an active delivery: 7");
     }
 
     @Test

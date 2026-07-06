@@ -5,6 +5,7 @@ import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleExce
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
+import com.yusufnazim.deliverydispatch.dispatch.exception.CourierAlreadyHasActiveDeliveryException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
@@ -72,6 +73,12 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ApiErrorResponse handleCourierNotEligibleForDispatch(CourierNotEligibleForDispatchException exception) {
 		return new ApiErrorResponse("COURIER_NOT_ELIGIBLE_FOR_DISPATCH", exception.getMessage());
+	}
+
+	@ExceptionHandler(CourierAlreadyHasActiveDeliveryException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ApiErrorResponse handleCourierAlreadyHasActiveDelivery(CourierAlreadyHasActiveDeliveryException exception) {
+		return new ApiErrorResponse("COURIER_ALREADY_HAS_ACTIVE_DELIVERY", exception.getMessage());
 	}
 
 	@ExceptionHandler(CourierNotFoundException.class)

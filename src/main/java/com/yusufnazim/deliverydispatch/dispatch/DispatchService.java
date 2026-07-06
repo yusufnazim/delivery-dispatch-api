@@ -1,6 +1,7 @@
 package com.yusufnazim.deliverydispatch.dispatch;
 
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
+import com.yusufnazim.deliverydispatch.dispatch.exception.CourierAlreadyHasActiveDeliveryException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
@@ -24,13 +25,20 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DispatchService {
 
+    private static final List<OrderStatus> ACTIVE_DELIVERY_STATUSES = List.of(
+            OrderStatus.ASSIGNED,
+            OrderStatus.PICKED_UP);
+
     private final DeliveryOrderRepository deliveryOrderRepository;
     private final UserRepository userRepository;
     private final HaversineDistanceCalculator distanceCalculator;
 
     @Transactional(readOnly = true)
     public List<User> findEligibleCouriers() {
-        return userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE);
+        return userRepository.findEligibleCouriersForDispatch(
+                Role.COURIER,
+                CourierAvailabilityStatus.AVAILABLE,
+                ACTIVE_DELIVERY_STATUSES);
     }
 
     @Transactional(readOnly = true)
@@ -85,6 +93,9 @@ public class DispatchService {
     private void validateCourierEligibleForDispatch(Long courierId, User courier) {
         if (courier.getCourierAvailabilityStatus() != CourierAvailabilityStatus.AVAILABLE) {
             throw new CourierNotEligibleForDispatchException(courierId, courier.getCourierAvailabilityStatus());
+        }
+        if (deliveryOrderRepository.existsByCourierIdAndStatusIn(courierId, ACTIVE_DELIVERY_STATUSES)) {
+            throw new CourierAlreadyHasActiveDeliveryException(courierId);
         }
     }
 

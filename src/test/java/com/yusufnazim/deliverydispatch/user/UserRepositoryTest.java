@@ -2,6 +2,9 @@ package com.yusufnazim.deliverydispatch.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
+import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
+import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,9 @@ class UserRepositoryTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private DeliveryOrderRepository deliveryOrderRepository;
 
     @Autowired
     private TestEntityManager entityManager;
@@ -103,6 +109,10 @@ class UserRepositoryTest {
         User locationMissingCourier = new User("location-missing-courier@example.com", "hashed-password", Role.COURIER);
         locationMissingCourier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
 
+        User busyCourier = new User("busy-courier@example.com", "hashed-password", Role.COURIER);
+        busyCourier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+        busyCourier.updateCourierLocation(new BigDecimal("41.030000"), new BigDecimal("28.970000"));
+
         User customer = new User("customer-without-courier-fields@example.com", "hashed-password", Role.CUSTOMER);
 
         userRepository.saveAllAndFlush(List.of(
@@ -110,11 +120,18 @@ class UserRepositoryTest {
                 unavailableCourier,
                 onDeliveryCourier,
                 locationMissingCourier,
+                busyCourier,
                 customer));
+        DeliveryOrder activeOrder = orderFor(customer);
+        activeOrder.assignCourier(busyCourier);
+        deliveryOrderRepository.saveAndFlush(activeOrder);
         entityManager.clear();
 
         List<User> eligibleCouriers =
-                userRepository.findEligibleCouriersForDispatch(Role.COURIER, CourierAvailabilityStatus.AVAILABLE);
+                userRepository.findEligibleCouriersForDispatch(
+                        Role.COURIER,
+                        CourierAvailabilityStatus.AVAILABLE,
+                        List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP));
 
         assertThat(eligibleCouriers)
                 .extracting(User::getEmail)
@@ -137,5 +154,16 @@ class UserRepositoryTest {
         assertThat(foundCustomer.getCourierAvailabilityStatus()).isNull();
         assertThat(foundCustomer.getCourierLatitude()).isNull();
         assertThat(foundCustomer.getCourierLongitude()).isNull();
+    }
+
+    private DeliveryOrder orderFor(User customer) {
+        return new DeliveryOrder(
+                customer,
+                "Pickup",
+                new BigDecimal("41.036900"),
+                new BigDecimal("28.985000"),
+                "Dropoff",
+                new BigDecimal("40.970000"),
+                new BigDecimal("29.057000"));
     }
 }
