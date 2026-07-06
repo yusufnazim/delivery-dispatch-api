@@ -2,6 +2,7 @@ package com.yusufnazim.deliverydispatch.dispatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
@@ -130,6 +131,17 @@ class DispatchServiceTest {
     }
 
     @Test
+    void assignNearestEligibleCourierRejectsAlreadyAssignedOrder() {
+        DeliveryOrder order = assignedOrder();
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> dispatchService.assignNearestEligibleCourier(100L))
+                .isInstanceOf(OrderAssignmentNotAllowedException.class)
+                .hasMessage("Order cannot be assigned from status: ASSIGNED");
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
     void assignNearestEligibleCourierRejectsWhenNoCourierIsEligible() {
         DeliveryOrder order = order();
         when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
@@ -213,6 +225,17 @@ class DispatchServiceTest {
                 .hasMessage("Order cannot be assigned from status: CANCELLED");
     }
 
+    @Test
+    void assignCourierToOrderRejectsAlreadyAssignedOrderBeforeCourierLookup() {
+        DeliveryOrder order = assignedOrder();
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> dispatchService.assignCourierToOrder(100L, 7L))
+                .isInstanceOf(OrderAssignmentNotAllowedException.class)
+                .hasMessage("Order cannot be assigned from status: ASSIGNED");
+        verifyNoInteractions(userRepository);
+    }
+
     private static User courierAt(String email, String latitude, String longitude) {
         User courier = new User(email, "hashed-password", Role.COURIER);
         courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
@@ -230,5 +253,11 @@ class DispatchServiceTest {
                 "Dropoff",
                 new BigDecimal("40.970000"),
                 new BigDecimal("29.057000"));
+    }
+
+    private static DeliveryOrder assignedOrder() {
+        DeliveryOrder order = order();
+        order.assignCourier(courierAt("assigned-courier@example.com", "41.037200", "28.985300"));
+        return order;
     }
 }

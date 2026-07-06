@@ -72,6 +72,19 @@ class DeliveryOrderTest {
                 .hasMessage("Order cannot be assigned from status: CANCELLED");
     }
 
+    @Test
+    void assignCourierRejectsAlreadyAssignedOrder() {
+        DeliveryOrder order = order();
+        User firstCourier = new User("first-courier@example.com", "hashed-password", Role.COURIER);
+        User secondCourier = new User("second-courier@example.com", "hashed-password", Role.COURIER);
+        order.assignCourier(firstCourier);
+
+        assertThatThrownBy(() -> order.assignCourier(secondCourier))
+                .isInstanceOf(OrderAssignmentNotAllowedException.class)
+                .hasMessage("Order cannot be assigned from status: ASSIGNED");
+        assertThat(order.getCourier()).isEqualTo(firstCourier);
+    }
+
     private DeliveryOrder order() {
         User customer = new User("customer@example.com", "hashed-password", Role.CUSTOMER);
         return new DeliveryOrder(
