@@ -28,6 +28,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Manual dispatch service assignment for assigning a specific available courier to a pending order.
 - One-active-delivery enforcement for courier assignment.
 - Double-assignment prevention for orders that are already assigned.
+- Transaction coverage for auto-dispatch and manual courier assignment.
 
 ## Remaining
 
