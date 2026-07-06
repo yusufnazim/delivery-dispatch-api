@@ -23,10 +23,11 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Courier location update endpoint restricted to authenticated couriers.
 - Reusable Haversine distance calculator for dispatch decisions.
 - Eligible courier lookup for dispatch based on availability and known location.
+- Nearest eligible courier selection using pickup coordinates and Haversine distance.
 
 ## Remaining
 
-- Auto-dispatch and manual assignment rules.
+- Auto-dispatch assignment and manual assignment rules.
 - Delivery lifecycle transitions and timeline records.
 - PostgreSQL-backed integration coverage for dispatch and workflow conflict paths.
 - Local demo kit with seed data, HTTP walkthrough, and concise README updates.
