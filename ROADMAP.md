@@ -30,9 +30,11 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Double-assignment prevention for orders that are already assigned.
 - Transaction coverage for auto-dispatch and manual courier assignment.
 - Optimistic locking conflict handling for courier assignment races.
+- Explicit delivery status transition rules for assignment, pickup, delivery, cancellation, and terminal states.
 
 ## Remaining
 
-- Delivery lifecycle transitions and timeline records.
+- Courier pickup and delivery completion endpoints.
+- Delivery timeline records.
 - PostgreSQL-backed integration coverage for delivery workflow paths.
 - Local demo kit with seed data, HTTP walkthrough, and concise README updates.

@@ -12,6 +12,7 @@ import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForD
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
+import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransitionException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentConflictException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
@@ -88,6 +89,11 @@ class GlobalExceptionHandlerTest {
                         method("handleOrderAssignmentConflict", OrderAssignmentConflictException.class),
                         new OrderAssignmentConflictException(11L),
                         "ORDER_ASSIGNMENT_CONFLICT",
+                        HttpStatus.CONFLICT),
+                new DomainErrorCase(
+                        method("handleInvalidOrderStatusTransition", InvalidOrderStatusTransitionException.class),
+                        new InvalidOrderStatusTransitionException(OrderStatus.ASSIGNED, OrderStatus.DELIVERED),
+                        "INVALID_ORDER_STATUS_TRANSITION",
                         HttpStatus.CONFLICT),
                 new DomainErrorCase(
                         method("handleNoEligibleCourier", NoEligibleCourierException.class),

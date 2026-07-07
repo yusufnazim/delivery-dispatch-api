@@ -3,6 +3,7 @@ package com.yusufnazim.deliverydispatch.order;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransitionException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.user.Role;
@@ -83,6 +84,58 @@ class DeliveryOrderTest {
                 .isInstanceOf(OrderAssignmentNotAllowedException.class)
                 .hasMessage("Order cannot be assigned from status: ASSIGNED");
         assertThat(order.getCourier()).isEqualTo(firstCourier);
+    }
+
+    @Test
+    void markPickedUpMovesAssignedOrderToPickedUp() {
+        DeliveryOrder order = order();
+        order.assignCourier(new User("courier@example.com", "hashed-password", Role.COURIER));
+
+        order.markPickedUp();
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PICKED_UP);
+    }
+
+    @Test
+    void markDeliveredMovesPickedUpOrderToDelivered() {
+        DeliveryOrder order = order();
+        order.assignCourier(new User("courier@example.com", "hashed-password", Role.COURIER));
+        order.markPickedUp();
+
+        order.markDelivered();
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.DELIVERED);
+    }
+
+    @Test
+    void markPickedUpRejectsPendingOrder() {
+        DeliveryOrder order = order();
+
+        assertThatThrownBy(order::markPickedUp)
+                .isInstanceOf(InvalidOrderStatusTransitionException.class)
+                .hasMessage("Order cannot transition from PENDING to PICKED_UP");
+    }
+
+    @Test
+    void markDeliveredRejectsAssignedOrder() {
+        DeliveryOrder order = order();
+        order.assignCourier(new User("courier@example.com", "hashed-password", Role.COURIER));
+
+        assertThatThrownBy(order::markDelivered)
+                .isInstanceOf(InvalidOrderStatusTransitionException.class)
+                .hasMessage("Order cannot transition from ASSIGNED to DELIVERED");
+    }
+
+    @Test
+    void markPickedUpRejectsDeliveredOrder() {
+        DeliveryOrder order = order();
+        order.assignCourier(new User("courier@example.com", "hashed-password", Role.COURIER));
+        order.markPickedUp();
+        order.markDelivered();
+
+        assertThatThrownBy(order::markPickedUp)
+                .isInstanceOf(InvalidOrderStatusTransitionException.class)
+                .hasMessage("Order cannot transition from DELIVERED to PICKED_UP");
     }
 
     private DeliveryOrder order() {

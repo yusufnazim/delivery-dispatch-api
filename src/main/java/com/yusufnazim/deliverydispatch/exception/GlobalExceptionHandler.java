@@ -9,6 +9,7 @@ import com.yusufnazim.deliverydispatch.dispatch.exception.CourierAlreadyHasActiv
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
+import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransitionException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentConflictException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
@@ -68,6 +69,12 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ApiErrorResponse handleOrderAssignmentConflict(OrderAssignmentConflictException exception) {
 		return new ApiErrorResponse("ORDER_ASSIGNMENT_CONFLICT", exception.getMessage());
+	}
+
+	@ExceptionHandler(InvalidOrderStatusTransitionException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ApiErrorResponse handleInvalidOrderStatusTransition(InvalidOrderStatusTransitionException exception) {
+		return new ApiErrorResponse("INVALID_ORDER_STATUS_TRANSITION", exception.getMessage());
 	}
 
 	@ExceptionHandler(NoEligibleCourierException.class)

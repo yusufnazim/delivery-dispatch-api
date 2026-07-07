@@ -1,5 +1,6 @@
 package com.yusufnazim.deliverydispatch.order;
 
+import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransitionException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -108,7 +109,7 @@ public class DeliveryOrder {
     }
 
     public void cancel() {
-        if (status != OrderStatus.PENDING) {
+        if (!status.canTransitionTo(OrderStatus.CANCELLED)) {
             throw new OrderCancellationNotAllowedException(status);
         }
 
@@ -116,12 +117,28 @@ public class DeliveryOrder {
     }
 
     public void assignCourier(User courier) {
-        if (status != OrderStatus.PENDING) {
+        if (!status.canTransitionTo(OrderStatus.ASSIGNED)) {
             throw new OrderAssignmentNotAllowedException(status);
         }
 
         this.courier = Objects.requireNonNull(courier, "courier must not be null");
         status = OrderStatus.ASSIGNED;
+    }
+
+    public void markPickedUp() {
+        transitionTo(OrderStatus.PICKED_UP);
+    }
+
+    public void markDelivered() {
+        transitionTo(OrderStatus.DELIVERED);
+    }
+
+    private void transitionTo(OrderStatus nextStatus) {
+        if (!status.canTransitionTo(nextStatus)) {
+            throw new InvalidOrderStatusTransitionException(status, nextStatus);
+        }
+
+        status = nextStatus;
     }
 
     @PrePersist

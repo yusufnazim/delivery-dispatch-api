@@ -5,5 +5,18 @@ public enum OrderStatus {
     ASSIGNED,
     PICKED_UP,
     DELIVERED,
-    CANCELLED
+    CANCELLED;
+
+    public boolean canTransitionTo(OrderStatus nextStatus) {
+        if (nextStatus == null) {
+            return false;
+        }
+
+        return switch (this) {
+            case PENDING -> nextStatus == ASSIGNED || nextStatus == CANCELLED;
+            case ASSIGNED -> nextStatus == PICKED_UP;
+            case PICKED_UP -> nextStatus == DELIVERED;
+            case DELIVERED, CANCELLED -> false;
+        };
+    }
 }
