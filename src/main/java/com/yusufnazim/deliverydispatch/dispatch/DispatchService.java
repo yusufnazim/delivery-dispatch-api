@@ -7,6 +7,7 @@ import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierExcep
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
+import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentConflictException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,7 +61,7 @@ public class DispatchService {
         User courier = findNearestEligibleCourier(order.getPickupLatitude(), order.getPickupLongitude())
                 .orElseThrow(() -> new NoEligibleCourierException(orderId));
 
-        assignCourier(order, courier);
+        assignCourier(orderId, order, courier);
 
         return order;
     }
@@ -71,7 +73,7 @@ public class DispatchService {
                 .orElseThrow(() -> new CourierNotFoundException(courierId));
         validateCourierEligibleForDispatch(courierId, courier);
 
-        assignCourier(order, courier);
+        assignCourier(orderId, order, courier);
 
         return order;
     }
@@ -85,9 +87,14 @@ public class DispatchService {
         return order;
     }
 
-    private void assignCourier(DeliveryOrder order, User courier) {
-        order.assignCourier(courier);
-        courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.ON_DELIVERY);
+    private void assignCourier(Long orderId, DeliveryOrder order, User courier) {
+        try {
+            order.assignCourier(courier);
+            courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.ON_DELIVERY);
+            deliveryOrderRepository.flush();
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            throw new OrderAssignmentConflictException(orderId, exception);
+        }
     }
 
     private void validateCourierEligibleForDispatch(Long courierId, User courier) {

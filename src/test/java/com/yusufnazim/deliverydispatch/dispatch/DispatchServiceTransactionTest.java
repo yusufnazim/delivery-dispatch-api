@@ -1,17 +1,16 @@
 package com.yusufnazim.deliverydispatch.dispatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.when;
 
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
-import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,33 +22,31 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.support.DependencyInjectionTestExecutionListener;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.support.AbstractPlatformTransactionManager;
 import org.springframework.transaction.support.DefaultTransactionStatus;
 
 @SpringJUnitConfig(classes = DispatchServiceTransactionTest.TransactionTestConfig.class)
+@TestExecutionListeners(
+        listeners = DependencyInjectionTestExecutionListener.class,
+        mergeMode = TestExecutionListeners.MergeMode.REPLACE_DEFAULTS)
 class DispatchServiceTransactionTest {
-
-    private static final List<OrderStatus> ACTIVE_DELIVERY_STATUSES = List.of(
-            OrderStatus.ASSIGNED,
-            OrderStatus.PICKED_UP);
 
     @Autowired
     private DispatchService dispatchService;
 
     @Autowired
-    private DeliveryOrderRepository deliveryOrderRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    private RepositoryStubs repositoryStubs;
 
     @Autowired
     private RecordingTransactionManager transactionManager;
 
     @BeforeEach
     void setUp() {
-        reset(deliveryOrderRepository, userRepository);
+        repositoryStubs.reset();
         transactionManager.clear();
     }
 
@@ -57,12 +54,8 @@ class DispatchServiceTransactionTest {
     void assignNearestEligibleCourierRunsInsideWriteTransaction() {
         DeliveryOrder order = order();
         User courier = courierAt("courier@example.com", "41.037200", "28.985300");
-        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
-        when(userRepository.findEligibleCouriersForDispatch(
-                Role.COURIER,
-                CourierAvailabilityStatus.AVAILABLE,
-                ACTIVE_DELIVERY_STATUSES))
-                .thenReturn(List.of(courier));
+        repositoryStubs.orderById = Optional.of(order);
+        repositoryStubs.eligibleCouriers = List.of(courier);
 
         dispatchService.assignNearestEligibleCourier(100L);
 
@@ -78,9 +71,8 @@ class DispatchServiceTransactionTest {
     void assignCourierToOrderRunsInsideWriteTransaction() {
         DeliveryOrder order = order();
         User courier = courierAt("courier@example.com", "41.037200", "28.985300");
-        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
-        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
-        when(deliveryOrderRepository.existsByCourierIdAndStatusIn(7L, ACTIVE_DELIVERY_STATUSES)).thenReturn(false);
+        repositoryStubs.orderById = Optional.of(order);
+        repositoryStubs.courierByIdAndRole = Optional.of(courier);
 
         dispatchService.assignCourierToOrder(100L, 7L);
 
@@ -134,18 +126,65 @@ class DispatchServiceTransactionTest {
         }
 
         @Bean
-        DeliveryOrderRepository deliveryOrderRepository() {
-            return mock(DeliveryOrderRepository.class);
+        RepositoryStubs repositoryStubs() {
+            return new RepositoryStubs();
         }
 
         @Bean
-        UserRepository userRepository() {
-            return mock(UserRepository.class);
+        DeliveryOrderRepository deliveryOrderRepository(RepositoryStubs repositoryStubs) {
+            return repositoryProxy(DeliveryOrderRepository.class, repositoryStubs::invokeDeliveryOrderRepository);
+        }
+
+        @Bean
+        UserRepository userRepository(RepositoryStubs repositoryStubs) {
+            return repositoryProxy(UserRepository.class, repositoryStubs::invokeUserRepository);
         }
 
         @Bean
         RecordingTransactionManager transactionManager() {
             return new RecordingTransactionManager();
+        }
+    }
+
+    static class RepositoryStubs {
+
+        private Optional<DeliveryOrder> orderById = Optional.empty();
+        private Optional<User> courierByIdAndRole = Optional.empty();
+        private List<User> eligibleCouriers = List.of();
+
+        void reset() {
+            orderById = Optional.empty();
+            courierByIdAndRole = Optional.empty();
+            eligibleCouriers = List.of();
+        }
+
+        Object invokeDeliveryOrderRepository(Object proxy, Method method, Object[] args) {
+            return switch (method.getName()) {
+                case "findById" -> orderById;
+                case "existsByCourierIdAndStatusIn" -> false;
+                case "flush" -> null;
+                default -> invokeObjectMethod(proxy, method, args);
+            };
+        }
+
+        Object invokeUserRepository(Object proxy, Method method, Object[] args) {
+            return switch (method.getName()) {
+                case "findEligibleCouriersForDispatch" -> eligibleCouriers;
+                case "findByIdAndRole" -> courierByIdAndRole;
+                default -> invokeObjectMethod(proxy, method, args);
+            };
+        }
+
+        private Object invokeObjectMethod(Object proxy, Method method, Object[] args) {
+            if (method.getDeclaringClass() == Object.class) {
+                return switch (method.getName()) {
+                    case "toString" -> proxy.getClass().getInterfaces()[0].getSimpleName() + "Stub";
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "equals" -> args != null && args.length == 1 && proxy == args[0];
+                    default -> throw new UnsupportedOperationException(method.getName());
+                };
+            }
+            throw new UnsupportedOperationException(method.getName());
         }
     }
 
@@ -195,5 +234,13 @@ class DispatchServiceTransactionTest {
     }
 
     private record TransactionBoundary(String name, boolean readOnly) {
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T repositoryProxy(Class<T> repositoryType, InvocationHandler invocationHandler) {
+        return (T) Proxy.newProxyInstance(
+                repositoryType.getClassLoader(),
+                new Class<?>[] {repositoryType},
+                invocationHandler);
     }
 }

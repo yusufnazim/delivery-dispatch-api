@@ -2,6 +2,7 @@ package com.yusufnazim.deliverydispatch.dispatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +13,7 @@ import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierExcep
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
+import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentConflictException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
@@ -26,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 @ExtendWith(MockitoExtension.class)
 class DispatchServiceTest {
@@ -157,6 +160,25 @@ class DispatchServiceTest {
     }
 
     @Test
+    void assignNearestEligibleCourierConvertsOptimisticLockFailureToAssignmentConflict() {
+        DeliveryOrder order = order();
+        User courier = courierAt("courier@example.com", "41.037200", "28.985300");
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findEligibleCouriersForDispatch(
+                Role.COURIER,
+                CourierAvailabilityStatus.AVAILABLE,
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
+                .thenReturn(List.of(courier));
+        doThrow(new ObjectOptimisticLockingFailureException(DeliveryOrder.class, 100L))
+                .when(deliveryOrderRepository)
+                .flush();
+
+        assertThatThrownBy(() -> dispatchService.assignNearestEligibleCourier(100L))
+                .isInstanceOf(OrderAssignmentConflictException.class)
+                .hasMessage("Order assignment conflict for order: 100");
+    }
+
+    @Test
     void assignCourierToOrderAssignsAvailableCourierToPendingOrder() {
         DeliveryOrder order = order();
         User courier = courierAt("courier@example.com", "41.037200", "28.985300");
@@ -234,6 +256,25 @@ class DispatchServiceTest {
                 .isInstanceOf(OrderAssignmentNotAllowedException.class)
                 .hasMessage("Order cannot be assigned from status: ASSIGNED");
         verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void assignCourierToOrderConvertsOptimisticLockFailureToAssignmentConflict() {
+        DeliveryOrder order = order();
+        User courier = courierAt("courier@example.com", "41.037200", "28.985300");
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order));
+        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+        when(deliveryOrderRepository.existsByCourierIdAndStatusIn(
+                7L,
+                List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
+                .thenReturn(false);
+        doThrow(new ObjectOptimisticLockingFailureException(DeliveryOrder.class, 100L))
+                .when(deliveryOrderRepository)
+                .flush();
+
+        assertThatThrownBy(() -> dispatchService.assignCourierToOrder(100L, 7L))
+                .isInstanceOf(OrderAssignmentConflictException.class)
+                .hasMessage("Order assignment conflict for order: 100");
     }
 
     private static User courierAt(String email, String latitude, String longitude) {

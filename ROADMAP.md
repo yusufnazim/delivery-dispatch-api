@@ -29,10 +29,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - One-active-delivery enforcement for courier assignment.
 - Double-assignment prevention for orders that are already assigned.
 - Transaction coverage for auto-dispatch and manual courier assignment.
+- Optimistic locking conflict handling for courier assignment races.
 
 ## Remaining
 
-- Assignment conflict safety for concurrent assignment races.
 - Delivery lifecycle transitions and timeline records.
-- PostgreSQL-backed integration coverage for dispatch and workflow conflict paths.
+- PostgreSQL-backed integration coverage for delivery workflow paths.
 - Local demo kit with seed data, HTTP walkthrough, and concise README updates.

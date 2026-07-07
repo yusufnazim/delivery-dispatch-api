@@ -1,6 +1,7 @@
 package com.yusufnazim.deliverydispatch.order;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -117,6 +119,45 @@ class DeliveryOrderRepositoryTest {
                 List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP));
 
         assertThat(hasActiveDelivery).isTrue();
+    }
+
+    @Test
+    void detectsOptimisticConflictForStaleAssignment() {
+        User customer = userRepository.save(new User(
+                "stale-assignment-customer@example.com",
+                "hashed-password",
+                Role.CUSTOMER));
+        User firstCourier = userRepository.save(new User(
+                "first-conflict-courier@example.com",
+                "hashed-password",
+                Role.COURIER));
+        User secondCourier = userRepository.save(new User(
+                "second-conflict-courier@example.com",
+                "hashed-password",
+                Role.COURIER));
+        DeliveryOrder savedOrder = deliveryOrderRepository.saveAndFlush(orderFor(customer, "Stale pickup"));
+        Long orderId = savedOrder.getId();
+        Long firstCourierId = firstCourier.getId();
+        Long secondCourierId = secondCourier.getId();
+        entityManager.clear();
+
+        DeliveryOrder staleOrder = deliveryOrderRepository.findById(orderId).orElseThrow();
+        User staleCourier = userRepository.findById(secondCourierId).orElseThrow();
+        int updatedRows = entityManager.getEntityManager()
+                .createNativeQuery("""
+                        update delivery_orders
+                        set status = 'ASSIGNED', courier_id = ?, version = version + 1
+                        where id = ?
+                        """)
+                .setParameter(1, firstCourierId)
+                .setParameter(2, orderId)
+                .executeUpdate();
+
+        staleOrder.assignCourier(staleCourier);
+
+        assertThat(updatedRows).isEqualTo(1);
+        assertThatThrownBy(deliveryOrderRepository::flush)
+                .isInstanceOf(ObjectOptimisticLockingFailureException.class);
     }
 
     private DeliveryOrder orderFor(User customer, String pickupAddress) {
