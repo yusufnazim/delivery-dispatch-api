@@ -4,12 +4,15 @@ import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.CourierLocationResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierAvailabilityRequest;
 import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierLocationRequest;
+import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,6 +40,14 @@ public class CourierController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody UpdateCourierLocationRequest request) {
         return courierService.updateLocation(userIdFrom(jwt), request.latitude(), request.longitude());
+    }
+
+    @PostMapping("/me/orders/{orderId}/pickup")
+    @PreAuthorize("hasRole('COURIER')")
+    public DeliveryOrderResponse pickupOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+        return courierService.pickupOrder(userIdFrom(jwt), orderId);
     }
 
     private Long userIdFrom(Jwt jwt) {

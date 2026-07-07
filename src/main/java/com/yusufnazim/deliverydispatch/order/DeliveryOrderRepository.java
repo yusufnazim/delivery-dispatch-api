@@ -9,6 +9,8 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
 
     Optional<DeliveryOrder> findByIdAndCustomerId(Long id, Long customerId);
 
+    Optional<DeliveryOrder> findByIdAndCourierId(Long id, Long courierId);
+
     List<DeliveryOrder> findByCustomerIdOrderByCreatedAtDescIdDesc(Long customerId);
 
     boolean existsByCourierIdAndStatusIn(Long courierId, Collection<OrderStatus> statuses);

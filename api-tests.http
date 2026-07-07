@@ -82,3 +82,7 @@ Content-Type: application/json
   "latitude": 41.008200,
   "longitude": 28.978400
 }
+
+### Mark assigned courier order as picked up
+POST {{baseUrl}}/api/v1/couriers/me/orders/1/pickup
+Authorization: Bearer {{courierToken}}

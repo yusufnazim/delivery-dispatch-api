@@ -4,6 +4,10 @@ import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.CourierLocationResponse;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
+import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
+import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
+import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
+import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -18,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CourierService {
 
     private final UserRepository userRepository;
+    private final DeliveryOrderRepository deliveryOrderRepository;
 
     @Transactional
     public CourierAvailabilityResponse updateAvailability(
@@ -43,5 +48,15 @@ public class CourierService {
         courier.updateCourierLocation(latitude, longitude);
 
         return CourierLocationResponse.from(courier);
+    }
+
+    @Transactional
+    public DeliveryOrderResponse pickupOrder(Long courierId, Long orderId) {
+        DeliveryOrder order = deliveryOrderRepository.findByIdAndCourierId(orderId, courierId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        order.markPickedUp();
+
+        return DeliveryOrderResponse.from(order);
     }
 }
