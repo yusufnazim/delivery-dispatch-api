@@ -50,6 +50,14 @@ public class CourierController {
         return courierService.pickupOrder(userIdFrom(jwt), orderId);
     }
 
+    @PostMapping("/me/orders/{orderId}/deliver")
+    @PreAuthorize("hasRole('COURIER')")
+    public DeliveryOrderResponse deliverOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+        return courierService.deliverOrder(userIdFrom(jwt), orderId);
+    }
+
     private Long userIdFrom(Jwt jwt) {
         Number userId = jwt.getClaim(USER_ID_CLAIM);
         return userId.longValue();

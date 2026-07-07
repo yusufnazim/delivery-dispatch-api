@@ -59,4 +59,15 @@ public class CourierService {
 
         return DeliveryOrderResponse.from(order);
     }
+
+    @Transactional
+    public DeliveryOrderResponse deliverOrder(Long courierId, Long orderId) {
+        DeliveryOrder order = deliveryOrderRepository.findByIdAndCourierId(orderId, courierId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        order.markDelivered();
+        order.getCourier().updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+
+        return DeliveryOrderResponse.from(order);
+    }
 }

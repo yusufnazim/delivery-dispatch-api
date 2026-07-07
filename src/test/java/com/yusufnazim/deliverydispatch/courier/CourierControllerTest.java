@@ -15,6 +15,7 @@ import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierAvailabilityRequ
 import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierLocationRequest;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
+import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransitionException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.security.JwtTokenService;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
@@ -247,6 +248,64 @@ class CourierControllerTest {
     @Test
     void pickupOrderRejectsNonCourierRole() throws Exception {
         mockMvc.perform(post("/api/v1/couriers/me/orders/11/pickup")
+                        .header("Authorization", bearerToken(9L, Role.CUSTOMER)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        verifyNoInteractions(courierService);
+    }
+
+    @Test
+    void deliverOrderReturnsDeliveredOrderForCourier() throws Exception {
+        when(courierService.deliverOrder(7L, 11L)).thenReturn(orderResponse(11L, OrderStatus.DELIVERED));
+
+        mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver")
+                        .header("Authorization", bearerToken(7L, Role.COURIER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(11))
+                .andExpect(jsonPath("$.status").value("DELIVERED"))
+                .andExpect(jsonPath("$.dropoffAddress").value("Bagdat Cd. No:10, Kadikoy"));
+
+        verify(courierService).deliverOrder(7L, 11L);
+    }
+
+    @Test
+    void deliverOrderReturnsNotFoundForMissingOrWrongCourierOrder() throws Exception {
+        when(courierService.deliverOrder(7L, 11L)).thenThrow(new OrderNotFoundException(11L));
+
+        mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver")
+                        .header("Authorization", bearerToken(7L, Role.COURIER)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
+
+        verify(courierService).deliverOrder(7L, 11L);
+    }
+
+    @Test
+    void deliverOrderReturnsConflictForInvalidStatus() throws Exception {
+        when(courierService.deliverOrder(7L, 11L))
+                .thenThrow(new InvalidOrderStatusTransitionException(OrderStatus.ASSIGNED, OrderStatus.DELIVERED));
+
+        mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver")
+                        .header("Authorization", bearerToken(7L, Role.COURIER)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_ORDER_STATUS_TRANSITION"));
+
+        verify(courierService).deliverOrder(7L, 11L);
+    }
+
+    @Test
+    void deliverOrderRejectsMissingBearerToken() throws Exception {
+        mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        verifyNoInteractions(courierService);
+    }
+
+    @Test
+    void deliverOrderRejectsNonCourierRole() throws Exception {
+        mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver")
                         .header("Authorization", bearerToken(9L, Role.CUSTOMER)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));

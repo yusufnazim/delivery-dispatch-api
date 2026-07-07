@@ -86,3 +86,7 @@ Content-Type: application/json
 ### Mark assigned courier order as picked up
 POST {{baseUrl}}/api/v1/couriers/me/orders/1/pickup
 Authorization: Bearer {{courierToken}}
+
+### Mark picked-up courier order as delivered
+POST {{baseUrl}}/api/v1/couriers/me/orders/1/deliver
+Authorization: Bearer {{courierToken}}

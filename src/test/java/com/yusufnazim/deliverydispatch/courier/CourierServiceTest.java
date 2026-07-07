@@ -128,6 +128,40 @@ class CourierServiceTest {
                 .hasMessage("Order cannot transition from PICKED_UP to PICKED_UP");
     }
 
+    @Test
+    void deliverOrderMarksPickedUpOrderAsDeliveredAndMakesCourierAvailable() {
+        DeliveryOrder order = assignedOrder(11L);
+        order.markPickedUp();
+        when(deliveryOrderRepository.findByIdAndCourierId(11L, 7L)).thenReturn(Optional.of(order));
+
+        DeliveryOrderResponse response = courierService.deliverOrder(7L, 11L);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.DELIVERED);
+        assertThat(order.getCourier().getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.AVAILABLE);
+        assertThat(response.id()).isEqualTo(11L);
+        assertThat(response.status()).isEqualTo(OrderStatus.DELIVERED);
+    }
+
+    @Test
+    void deliverOrderRejectsMissingOrWrongCourierOrder() {
+        when(deliveryOrderRepository.findByIdAndCourierId(11L, 7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> courierService.deliverOrder(7L, 11L))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessage("Order not found: 11");
+    }
+
+    @Test
+    void deliverOrderRejectsInvalidStatus() {
+        DeliveryOrder order = assignedOrder(11L);
+        when(deliveryOrderRepository.findByIdAndCourierId(11L, 7L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> courierService.deliverOrder(7L, 11L))
+                .isInstanceOf(InvalidOrderStatusTransitionException.class)
+                .hasMessage("Order cannot transition from ASSIGNED to DELIVERED");
+        assertThat(order.getCourier().getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
+    }
+
     private DeliveryOrder assignedOrder(Long orderId) {
         User customer = new User("customer@example.com", "hashed-password", Role.CUSTOMER);
         User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
@@ -143,6 +177,7 @@ class CourierServiceTest {
         ReflectionTestUtils.setField(order, "createdAt", Instant.parse("2026-06-30T10:00:00Z"));
         ReflectionTestUtils.setField(order, "updatedAt", Instant.parse("2026-06-30T10:05:00Z"));
         order.assignCourier(courier);
+        courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.ON_DELIVERY);
         return order;
     }
 }

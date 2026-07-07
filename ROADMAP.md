@@ -32,10 +32,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Optimistic locking conflict handling for courier assignment races.
 - Explicit delivery status transition rules for assignment, pickup, delivery, cancellation, and terminal states.
 - Courier pickup action that lets the assigned courier move an order from assigned to picked up.
+- Courier delivery completion action that marks picked-up orders as delivered and makes the courier available again.
 
 ## Remaining
 
-- Courier delivery completion endpoint.
 - Delivery timeline records.
 - PostgreSQL-backed integration coverage for delivery workflow paths.
 - Local demo kit with seed data, HTTP walkthrough, and concise README updates.
