@@ -2,6 +2,7 @@ package com.yusufnazim.deliverydispatch;
 
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryEventRepository;
 import org.mockito.Mockito;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -20,5 +21,11 @@ class TestRepositoryConfig {
     @ConditionalOnMissingBean(DeliveryOrderRepository.class)
     DeliveryOrderRepository deliveryOrderRepository() {
         return Mockito.mock(DeliveryOrderRepository.class);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(DeliveryEventRepository.class)
+    DeliveryEventRepository deliveryEventRepository() {
+        return Mockito.mock(DeliveryEventRepository.class);
     }
 }

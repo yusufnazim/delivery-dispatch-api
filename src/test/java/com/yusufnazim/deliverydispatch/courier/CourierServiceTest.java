@@ -2,6 +2,7 @@ package com.yusufnazim.deliverydispatch.courier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
@@ -14,6 +15,7 @@ import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransitionException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -36,6 +38,9 @@ class CourierServiceTest {
 
     @Mock
     private DeliveryOrderRepository deliveryOrderRepository;
+
+    @Mock
+    private DeliveryTimelineService deliveryTimelineService;
 
     @InjectMocks
     private CourierService courierService;
@@ -106,6 +111,7 @@ class CourierServiceTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PICKED_UP);
         assertThat(response.id()).isEqualTo(11L);
         assertThat(response.status()).isEqualTo(OrderStatus.PICKED_UP);
+        verify(deliveryTimelineService).recordOrderPickedUp(order);
     }
 
     @Test
@@ -140,6 +146,7 @@ class CourierServiceTest {
         assertThat(order.getCourier().getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.AVAILABLE);
         assertThat(response.id()).isEqualTo(11L);
         assertThat(response.status()).isEqualTo(OrderStatus.DELIVERED);
+        verify(deliveryTimelineService).recordOrderDelivered(order);
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import java.util.List;
@@ -17,6 +18,7 @@ public class DeliveryOrderService {
 
     private final DeliveryOrderRepository deliveryOrderRepository;
     private final UserRepository userRepository;
+    private final DeliveryTimelineService deliveryTimelineService;
 
     @Transactional
     public DeliveryOrderResponse createOrder(Long customerId, CreateDeliveryOrderRequest request) {
@@ -33,6 +35,7 @@ public class DeliveryOrderService {
                 request.dropoffLongitude());
 
         DeliveryOrder savedOrder = deliveryOrderRepository.save(order);
+        deliveryTimelineService.recordOrderCreated(savedOrder);
 
         return DeliveryOrderResponse.from(savedOrder);
     }
@@ -58,6 +61,7 @@ public class DeliveryOrderService {
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         order.cancel();
+        deliveryTimelineService.recordOrderCancelled(order);
 
         return DeliveryOrderResponse.from(order);
     }

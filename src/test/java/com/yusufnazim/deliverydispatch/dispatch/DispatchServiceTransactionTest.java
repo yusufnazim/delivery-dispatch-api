@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryEventRepository;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -116,13 +118,23 @@ class DispatchServiceTransactionTest {
         DispatchService dispatchService(
                 DeliveryOrderRepository deliveryOrderRepository,
                 UserRepository userRepository,
-                HaversineDistanceCalculator distanceCalculator) {
-            return new DispatchService(deliveryOrderRepository, userRepository, distanceCalculator);
+                HaversineDistanceCalculator distanceCalculator,
+                DeliveryTimelineService deliveryTimelineService) {
+            return new DispatchService(
+                    deliveryOrderRepository,
+                    userRepository,
+                    distanceCalculator,
+                    deliveryTimelineService);
         }
 
         @Bean
         HaversineDistanceCalculator distanceCalculator() {
             return new HaversineDistanceCalculator();
+        }
+
+        @Bean
+        DeliveryTimelineService deliveryTimelineService(DeliveryEventRepository deliveryEventRepository) {
+            return new DeliveryTimelineService(deliveryEventRepository);
         }
 
         @Bean
@@ -138,6 +150,11 @@ class DispatchServiceTransactionTest {
         @Bean
         UserRepository userRepository(RepositoryStubs repositoryStubs) {
             return repositoryProxy(UserRepository.class, repositoryStubs::invokeUserRepository);
+        }
+
+        @Bean
+        DeliveryEventRepository deliveryEventRepository(RepositoryStubs repositoryStubs) {
+            return repositoryProxy(DeliveryEventRepository.class, repositoryStubs::invokeDeliveryEventRepository);
         }
 
         @Bean
@@ -171,6 +188,13 @@ class DispatchServiceTransactionTest {
             return switch (method.getName()) {
                 case "findEligibleCouriersForDispatch" -> eligibleCouriers;
                 case "findByIdAndRole" -> courierByIdAndRole;
+                default -> invokeObjectMethod(proxy, method, args);
+            };
+        }
+
+        Object invokeDeliveryEventRepository(Object proxy, Method method, Object[] args) {
+            return switch (method.getName()) {
+                case "save" -> args[0];
                 default -> invokeObjectMethod(proxy, method, args);
             };
         }

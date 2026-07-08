@@ -8,6 +8,7 @@ import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -23,6 +24,7 @@ public class CourierService {
 
     private final UserRepository userRepository;
     private final DeliveryOrderRepository deliveryOrderRepository;
+    private final DeliveryTimelineService deliveryTimelineService;
 
     @Transactional
     public CourierAvailabilityResponse updateAvailability(
@@ -56,6 +58,7 @@ public class CourierService {
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         order.markPickedUp();
+        deliveryTimelineService.recordOrderPickedUp(order);
 
         return DeliveryOrderResponse.from(order);
     }
@@ -67,6 +70,7 @@ public class CourierService {
 
         order.markDelivered();
         order.getCourier().updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+        deliveryTimelineService.recordOrderDelivered(order);
 
         return DeliveryOrderResponse.from(order);
     }

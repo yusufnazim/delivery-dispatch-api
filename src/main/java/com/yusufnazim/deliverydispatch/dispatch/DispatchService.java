@@ -10,6 +10,7 @@ import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentConflictException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -34,6 +35,7 @@ public class DispatchService {
     private final DeliveryOrderRepository deliveryOrderRepository;
     private final UserRepository userRepository;
     private final HaversineDistanceCalculator distanceCalculator;
+    private final DeliveryTimelineService deliveryTimelineService;
 
     @Transactional(readOnly = true)
     public List<User> findEligibleCouriers() {
@@ -92,6 +94,7 @@ public class DispatchService {
             order.assignCourier(courier);
             courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.ON_DELIVERY);
             deliveryOrderRepository.flush();
+            deliveryTimelineService.recordCourierAssigned(order);
         } catch (ObjectOptimisticLockingFailureException exception) {
             throw new OrderAssignmentConflictException(orderId, exception);
         }

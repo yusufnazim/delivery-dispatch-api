@@ -3,6 +3,7 @@ package com.yusufnazim.deliverydispatch.dispatch;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +17,7 @@ import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentConflictException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
@@ -39,11 +41,18 @@ class DispatchServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private DeliveryTimelineService deliveryTimelineService;
+
     private DispatchService dispatchService;
 
     @BeforeEach
     void setUp() {
-        dispatchService = new DispatchService(deliveryOrderRepository, userRepository, new HaversineDistanceCalculator());
+        dispatchService = new DispatchService(
+                deliveryOrderRepository,
+                userRepository,
+                new HaversineDistanceCalculator(),
+                deliveryTimelineService);
     }
 
     @Test
@@ -111,6 +120,7 @@ class DispatchServiceTest {
         assertThat(assignedOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
         assertThat(assignedOrder.getCourier()).isEqualTo(nearestCourier);
         assertThat(nearestCourier.getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
+        verify(deliveryTimelineService).recordCourierAssigned(order);
     }
 
     @Test
@@ -195,6 +205,7 @@ class DispatchServiceTest {
         assertThat(assignedOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
         assertThat(assignedOrder.getCourier()).isEqualTo(courier);
         assertThat(courier.getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
+        verify(deliveryTimelineService).recordCourierAssigned(order);
     }
 
     @Test

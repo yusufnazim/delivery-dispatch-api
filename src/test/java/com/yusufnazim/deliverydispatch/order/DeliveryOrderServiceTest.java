@@ -12,6 +12,7 @@ import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
@@ -35,6 +36,9 @@ class DeliveryOrderServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private DeliveryTimelineService deliveryTimelineService;
 
     @InjectMocks
     private DeliveryOrderService deliveryOrderService;
@@ -75,6 +79,7 @@ class DeliveryOrderServiceTest {
         assertThat(response.dropoffLongitude()).isEqualByComparingTo("29.057000");
         assertThat(response.createdAt()).isNotNull();
         assertThat(response.updatedAt()).isNotNull();
+        verify(deliveryTimelineService).recordOrderCreated(savedOrder);
     }
 
     @Test
@@ -87,6 +92,7 @@ class DeliveryOrderServiceTest {
                 .hasMessage("Customer not found: 404");
 
         verify(deliveryOrderRepository, never()).save(any());
+        verify(deliveryTimelineService, never()).recordOrderCreated(any());
     }
 
     @Test
@@ -142,6 +148,7 @@ class DeliveryOrderServiceTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         assertThat(response.status()).isEqualTo(OrderStatus.CANCELLED);
         assertThat(response.pickupAddress()).isEqualTo("Istiklal Cd. No:1, Beyoglu");
+        verify(deliveryTimelineService).recordOrderCancelled(order);
     }
 
     @Test
