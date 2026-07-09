@@ -36,8 +36,9 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Delivery event persistence model for storing order timeline history.
 - Automatic delivery timeline event records for order creation, assignment, pickup, delivery, and cancellation.
 - Customer order timeline endpoint for viewing owned delivery history.
+- PostgreSQL-backed integration coverage for the customer delivery workflow from order creation through delivery.
 
 ## Remaining
 
-- PostgreSQL-backed integration coverage for delivery workflow paths.
+- Additional integration coverage for dispatch and workflow failure paths.
 - Local demo kit with seed data, HTTP walkthrough, and concise README updates.
