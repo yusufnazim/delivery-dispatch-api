@@ -133,8 +133,10 @@ class DispatchServiceTransactionTest {
         }
 
         @Bean
-        DeliveryTimelineService deliveryTimelineService(DeliveryEventRepository deliveryEventRepository) {
-            return new DeliveryTimelineService(deliveryEventRepository);
+        DeliveryTimelineService deliveryTimelineService(
+                DeliveryEventRepository deliveryEventRepository,
+                DeliveryOrderRepository deliveryOrderRepository) {
+            return new DeliveryTimelineService(deliveryEventRepository, deliveryOrderRepository);
         }
 
         @Bean

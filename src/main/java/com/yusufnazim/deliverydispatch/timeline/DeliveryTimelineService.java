@@ -1,14 +1,30 @@
 package com.yusufnazim.deliverydispatch.timeline;
 
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
+import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
+import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
+import com.yusufnazim.deliverydispatch.timeline.dto.DeliveryEventResponse;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class DeliveryTimelineService {
 
     private final DeliveryEventRepository deliveryEventRepository;
+    private final DeliveryOrderRepository deliveryOrderRepository;
+
+    @Transactional(readOnly = true)
+    public List<DeliveryEventResponse> getCustomerOrderTimeline(Long customerId, Long orderId) {
+        deliveryOrderRepository.findByIdAndCustomerId(orderId, customerId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        return deliveryEventRepository.findByDeliveryOrderIdOrderByCreatedAtAscIdAsc(orderId).stream()
+                .map(DeliveryEventResponse::from)
+                .toList();
+    }
 
     public void recordOrderCreated(DeliveryOrder order) {
         record(order, DeliveryEventType.ORDER_CREATED, "Order created");

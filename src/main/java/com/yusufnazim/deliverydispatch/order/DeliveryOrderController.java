@@ -2,6 +2,8 @@ package com.yusufnazim.deliverydispatch.order;
 
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
+import com.yusufnazim.deliverydispatch.timeline.dto.DeliveryEventResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ public class DeliveryOrderController {
     private static final String USER_ID_CLAIM = "userId";
 
     private final DeliveryOrderService deliveryOrderService;
+    private final DeliveryTimelineService deliveryTimelineService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -48,6 +51,14 @@ public class DeliveryOrderController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long orderId) {
         return deliveryOrderService.getCustomerOrder(userIdFrom(jwt), orderId);
+    }
+
+    @GetMapping("/{orderId}/timeline")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public List<DeliveryEventResponse> getOrderTimeline(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+        return deliveryTimelineService.getCustomerOrderTimeline(userIdFrom(jwt), orderId);
     }
 
     @DeleteMapping("/{orderId}")

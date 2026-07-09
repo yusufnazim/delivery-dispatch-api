@@ -35,9 +35,9 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Courier delivery completion action that marks picked-up orders as delivered and makes the courier available again.
 - Delivery event persistence model for storing order timeline history.
 - Automatic delivery timeline event records for order creation, assignment, pickup, delivery, and cancellation.
+- Customer order timeline endpoint for viewing owned delivery history.
 
 ## Remaining
 
-- Order timeline endpoint.
 - PostgreSQL-backed integration coverage for delivery workflow paths.
 - Local demo kit with seed data, HTTP walkthrough, and concise README updates.

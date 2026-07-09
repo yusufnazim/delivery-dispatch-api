@@ -19,6 +19,9 @@ import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.security.JwtTokenService;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryEventType;
+import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
+import com.yusufnazim.deliverydispatch.timeline.dto.DeliveryEventResponse;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
 import java.math.BigDecimal;
@@ -43,6 +46,9 @@ class DeliveryOrderControllerTest {
 
     @MockitoBean
     private DeliveryOrderService deliveryOrderService;
+
+    @MockitoBean
+    private DeliveryTimelineService deliveryTimelineService;
 
     @Autowired
     DeliveryOrderControllerTest(MockMvc mockMvc, ObjectMapper objectMapper, JwtTokenService jwtTokenService) {
@@ -169,6 +175,43 @@ class DeliveryOrderControllerTest {
     }
 
     @Test
+    void getOrderTimelineReturnsOwnedOrderEvents() throws Exception {
+        when(deliveryTimelineService.getCustomerOrderTimeline(7L, 11L))
+                .thenReturn(List.of(
+                        new DeliveryEventResponse(
+                                DeliveryEventType.ORDER_CREATED,
+                                "Order created",
+                                Instant.parse("2026-07-09T10:00:00Z")),
+                        new DeliveryEventResponse(
+                                DeliveryEventType.ORDER_PICKED_UP,
+                                "Order picked up",
+                                Instant.parse("2026-07-09T10:20:00Z"))));
+
+        mockMvc.perform(get("/api/v1/orders/11/timeline")
+                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("ORDER_CREATED"))
+                .andExpect(jsonPath("$[0].description").value("Order created"))
+                .andExpect(jsonPath("$[0].createdAt").value("2026-07-09T10:00:00Z"))
+                .andExpect(jsonPath("$[1].type").value("ORDER_PICKED_UP"))
+                .andExpect(jsonPath("$[1].description").value("Order picked up"))
+                .andExpect(jsonPath("$[1].createdAt").value("2026-07-09T10:20:00Z"));
+
+        verify(deliveryTimelineService).getCustomerOrderTimeline(7L, 11L);
+    }
+
+    @Test
+    void getOrderTimelineReturnsNotFoundForMissingOrUnownedOrder() throws Exception {
+        when(deliveryTimelineService.getCustomerOrderTimeline(eq(7L), eq(404L)))
+                .thenThrow(new OrderNotFoundException(404L));
+
+        mockMvc.perform(get("/api/v1/orders/404/timeline")
+                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
+    }
+
+    @Test
     void getOrderReturnsNotFoundForMissingOrUnownedOrder() throws Exception {
         when(deliveryOrderService.getCustomerOrder(eq(7L), eq(404L)))
                 .thenThrow(new OrderNotFoundException(404L));
@@ -245,6 +288,15 @@ class DeliveryOrderControllerTest {
     }
 
     @Test
+    void getOrderTimelineRejectsMissingBearerToken() throws Exception {
+        mockMvc.perform(get("/api/v1/orders/11/timeline"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        verifyNoInteractions(deliveryTimelineService);
+    }
+
+    @Test
     void getOrderRejectsNonCustomerRole() throws Exception {
         mockMvc.perform(get("/api/v1/orders/11")
                         .header("Authorization", bearerToken(9L, Role.DISPATCHER)))
@@ -252,6 +304,16 @@ class DeliveryOrderControllerTest {
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
 
         verifyNoInteractions(deliveryOrderService);
+    }
+
+    @Test
+    void getOrderTimelineRejectsNonCustomerRole() throws Exception {
+        mockMvc.perform(get("/api/v1/orders/11/timeline")
+                        .header("Authorization", bearerToken(9L, Role.DISPATCHER)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        verifyNoInteractions(deliveryTimelineService);
     }
 
     private CreateDeliveryOrderRequest validRequest() {
