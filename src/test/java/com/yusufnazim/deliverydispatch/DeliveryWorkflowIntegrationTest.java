@@ -13,6 +13,7 @@ import com.yusufnazim.deliverydispatch.order.DeliveryOrderService;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
+import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryEvent;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryEventRepository;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryEventType;
@@ -211,6 +212,53 @@ class DeliveryWorkflowIntegrationTest {
         assertThat(secondTimeline)
                 .extracting(DeliveryEvent::getEventType)
                 .containsExactly(DeliveryEventType.ORDER_CREATED);
+    }
+
+    @Test
+    void manualAssignmentRejectsAlreadyAssignedOrder() {
+        User customer = userRepository.save(new User(
+                "double-assignment-customer@example.com",
+                "hashed-password",
+                Role.CUSTOMER));
+        User firstCourier = userRepository.save(availableCourier(
+                "double-assignment-first-courier@example.com",
+                "41.037000",
+                "28.986000"));
+        User secondCourier = userRepository.save(availableCourier(
+                "double-assignment-second-courier@example.com",
+                "41.038000",
+                "28.987000"));
+        DeliveryOrderResponse createdOrder = deliveryOrderService.createOrder(
+                customer.getId(),
+                createOrderRequest());
+
+        DeliveryOrder assignedOrder = dispatchService.assignCourierToOrder(createdOrder.id(), firstCourier.getId());
+
+        assertThatThrownBy(() -> dispatchService.assignCourierToOrder(createdOrder.id(), secondCourier.getId()))
+                .isInstanceOf(OrderAssignmentNotAllowedException.class)
+                .hasMessage("Order cannot be assigned from status: ASSIGNED");
+
+        DeliveryOrder persistedOrder = deliveryOrderRepository
+                .findByIdAndCourierId(createdOrder.id(), firstCourier.getId())
+                .orElseThrow();
+        User persistedFirstCourier = userRepository.findById(firstCourier.getId()).orElseThrow();
+        User persistedSecondCourier = userRepository.findById(secondCourier.getId()).orElseThrow();
+        List<DeliveryEvent> timeline = deliveryEventRepository
+                .findByDeliveryOrderIdOrderByCreatedAtAscIdAsc(createdOrder.id());
+
+        assertThat(assignedOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(persistedOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(deliveryOrderRepository.findByIdAndCourierId(createdOrder.id(), secondCourier.getId()))
+                .isEmpty();
+        assertThat(persistedFirstCourier.getCourierAvailabilityStatus())
+                .isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
+        assertThat(persistedSecondCourier.getCourierAvailabilityStatus())
+                .isEqualTo(CourierAvailabilityStatus.AVAILABLE);
+        assertThat(timeline)
+                .extracting(DeliveryEvent::getEventType)
+                .containsExactly(
+                        DeliveryEventType.ORDER_CREATED,
+                        DeliveryEventType.COURIER_ASSIGNED);
     }
 
     private User availableCourier(String email, String latitude, String longitude) {
