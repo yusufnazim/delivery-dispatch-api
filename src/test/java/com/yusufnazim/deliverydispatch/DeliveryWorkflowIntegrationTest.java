@@ -1,9 +1,11 @@
 package com.yusufnazim.deliverydispatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.yusufnazim.deliverydispatch.courier.CourierService;
 import com.yusufnazim.deliverydispatch.dispatch.DispatchService;
+import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderService;
@@ -19,6 +21,7 @@ import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -68,6 +71,13 @@ class DeliveryWorkflowIntegrationTest {
         this.deliveryOrderRepository = deliveryOrderRepository;
         this.deliveryEventRepository = deliveryEventRepository;
         this.userRepository = userRepository;
+    }
+
+    @BeforeEach
+    void cleanDatabase() {
+        deliveryEventRepository.deleteAllInBatch();
+        deliveryOrderRepository.deleteAllInBatch();
+        userRepository.deleteAllInBatch();
     }
 
     @Test
@@ -126,6 +136,30 @@ class DeliveryWorkflowIntegrationTest {
                         "Order delivered");
         assertThat(timeline)
                 .allSatisfy(event -> assertThat(event.getCreatedAt()).isNotNull());
+    }
+
+    @Test
+    void autoDispatchWithoutEligibleCourierLeavesOrderPending() {
+        User customer = userRepository.save(new User(
+                "no-courier-customer@example.com",
+                "hashed-password",
+                Role.CUSTOMER));
+        DeliveryOrderResponse createdOrder = deliveryOrderService.createOrder(
+                customer.getId(),
+                createOrderRequest());
+
+        assertThatThrownBy(() -> dispatchService.assignNearestEligibleCourier(createdOrder.id()))
+                .isInstanceOf(NoEligibleCourierException.class)
+                .hasMessage("No eligible courier found for order: " + createdOrder.id());
+
+        DeliveryOrder persistedOrder = deliveryOrderRepository.findById(createdOrder.id()).orElseThrow();
+        List<DeliveryEvent> timeline = deliveryEventRepository
+                .findByDeliveryOrderIdOrderByCreatedAtAscIdAsc(createdOrder.id());
+        assertThat(persistedOrder.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(persistedOrder.getCourier()).isNull();
+        assertThat(timeline)
+                .extracting(DeliveryEvent::getEventType)
+                .containsExactly(DeliveryEventType.ORDER_CREATED);
     }
 
     private User availableCourier(String email, String latitude, String longitude) {
