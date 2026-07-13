@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.yusufnazim.deliverydispatch.courier.CourierService;
 import com.yusufnazim.deliverydispatch.dispatch.DispatchService;
+import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
@@ -158,6 +159,56 @@ class DeliveryWorkflowIntegrationTest {
         assertThat(persistedOrder.getStatus()).isEqualTo(OrderStatus.PENDING);
         assertThat(persistedOrder.getCourier()).isNull();
         assertThat(timeline)
+                .extracting(DeliveryEvent::getEventType)
+                .containsExactly(DeliveryEventType.ORDER_CREATED);
+    }
+
+    @Test
+    void manualAssignmentRejectsCourierAlreadyOnDelivery() {
+        User customer = userRepository.save(new User(
+                "manual-conflict-customer@example.com",
+                "hashed-password",
+                Role.CUSTOMER));
+        User courier = userRepository.save(availableCourier(
+                "manual-conflict-courier@example.com",
+                "41.037000",
+                "28.986000"));
+        DeliveryOrderResponse firstOrder = deliveryOrderService.createOrder(
+                customer.getId(),
+                createOrderRequest());
+        DeliveryOrderResponse secondOrder = deliveryOrderService.createOrder(
+                customer.getId(),
+                createOrderRequest());
+
+        DeliveryOrder assignedFirstOrder = dispatchService.assignCourierToOrder(firstOrder.id(), courier.getId());
+
+        assertThatThrownBy(() -> dispatchService.assignCourierToOrder(secondOrder.id(), courier.getId()))
+                .isInstanceOf(CourierNotEligibleForDispatchException.class)
+                .hasMessage("Courier is not eligible for dispatch: "
+                        + courier.getId()
+                        + " with status: ON_DELIVERY");
+
+        DeliveryOrder persistedFirstOrder = deliveryOrderRepository.findById(firstOrder.id()).orElseThrow();
+        DeliveryOrder persistedSecondOrder = deliveryOrderRepository.findById(secondOrder.id()).orElseThrow();
+        User persistedCourier = userRepository.findById(courier.getId()).orElseThrow();
+        List<DeliveryEvent> firstTimeline = deliveryEventRepository
+                .findByDeliveryOrderIdOrderByCreatedAtAscIdAsc(firstOrder.id());
+        List<DeliveryEvent> secondTimeline = deliveryEventRepository
+                .findByDeliveryOrderIdOrderByCreatedAtAscIdAsc(secondOrder.id());
+
+        assertThat(assignedFirstOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(persistedFirstOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(persistedFirstOrder.getCourier().getId()).isEqualTo(courier.getId());
+        assertThat(persistedCourier.getCourierAvailabilityStatus())
+                .isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
+        assertThat(persistedSecondOrder.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(persistedSecondOrder.getCourier()).isNull();
+        assertThat(firstTimeline)
+                .extracting(DeliveryEvent::getEventType)
+                .containsExactly(
+                        DeliveryEventType.ORDER_CREATED,
+                        DeliveryEventType.COURIER_ASSIGNED);
+        assertThat(secondTimeline)
                 .extracting(DeliveryEvent::getEventType)
                 .containsExactly(DeliveryEventType.ORDER_CREATED);
     }

@@ -38,6 +38,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Customer order timeline endpoint for viewing owned delivery history.
 - PostgreSQL-backed integration coverage for the customer delivery workflow from order creation through delivery.
 - PostgreSQL-backed integration coverage for no-courier auto-dispatch failure behavior.
+- PostgreSQL-backed integration coverage for manual assignment conflict behavior.
 
 ## Remaining
 
