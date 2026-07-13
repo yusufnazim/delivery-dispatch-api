@@ -13,6 +13,7 @@ import com.yusufnazim.deliverydispatch.order.DeliveryOrderService;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
+import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransitionException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryEvent;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryEventRepository;
@@ -254,6 +255,44 @@ class DeliveryWorkflowIntegrationTest {
                 .isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
         assertThat(persistedSecondCourier.getCourierAvailabilityStatus())
                 .isEqualTo(CourierAvailabilityStatus.AVAILABLE);
+        assertThat(timeline)
+                .extracting(DeliveryEvent::getEventType)
+                .containsExactly(
+                        DeliveryEventType.ORDER_CREATED,
+                        DeliveryEventType.COURIER_ASSIGNED);
+    }
+
+    @Test
+    void deliveryBeforePickupLeavesPersistedStateUnchanged() {
+        User customer = userRepository.save(new User(
+                "invalid-transition-customer@example.com",
+                "hashed-password",
+                Role.CUSTOMER));
+        User courier = userRepository.save(availableCourier(
+                "invalid-transition-courier@example.com",
+                "41.037000",
+                "28.986000"));
+        DeliveryOrderResponse createdOrder = deliveryOrderService.createOrder(
+                customer.getId(),
+                createOrderRequest());
+
+        DeliveryOrder assignedOrder = dispatchService.assignCourierToOrder(createdOrder.id(), courier.getId());
+
+        assertThatThrownBy(() -> courierService.deliverOrder(courier.getId(), createdOrder.id()))
+                .isInstanceOf(InvalidOrderStatusTransitionException.class)
+                .hasMessage("Order cannot transition from ASSIGNED to DELIVERED");
+
+        DeliveryOrder persistedOrder = deliveryOrderRepository
+                .findByIdAndCourierId(createdOrder.id(), courier.getId())
+                .orElseThrow();
+        User persistedCourier = userRepository.findById(courier.getId()).orElseThrow();
+        List<DeliveryEvent> timeline = deliveryEventRepository
+                .findByDeliveryOrderIdOrderByCreatedAtAscIdAsc(createdOrder.id());
+
+        assertThat(assignedOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(persistedOrder.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(persistedCourier.getCourierAvailabilityStatus())
+                .isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
         assertThat(timeline)
                 .extracting(DeliveryEvent::getEventType)
                 .containsExactly(
