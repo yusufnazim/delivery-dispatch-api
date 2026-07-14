@@ -3,12 +3,14 @@ package com.yusufnazim.deliverydispatch.courier;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yusufnazim.deliverydispatch.config.SecurityConfig;
 import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.CourierLocationResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierAvailabilityRequest;
@@ -17,36 +19,40 @@ import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransitionException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
-import com.yusufnazim.deliverydispatch.security.JwtTokenService;
+import com.yusufnazim.deliverydispatch.exception.GlobalExceptionHandler;
+import com.yusufnazim.deliverydispatch.security.SecurityErrorHandler;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
-import com.yusufnazim.deliverydispatch.user.User;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(CourierController.class)
+@Import({SecurityConfig.class, SecurityErrorHandler.class, GlobalExceptionHandler.class})
 class CourierControllerTest {
 
     private final MockMvc mockMvc;
     private final ObjectMapper objectMapper;
-    private final JwtTokenService jwtTokenService;
 
     @MockitoBean
     private CourierService courierService;
 
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
+
     @Autowired
-    CourierControllerTest(MockMvc mockMvc, ObjectMapper objectMapper, JwtTokenService jwtTokenService) {
+    CourierControllerTest(MockMvc mockMvc, ObjectMapper objectMapper) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
-        this.jwtTokenService = jwtTokenService;
     }
 
     @Test
@@ -57,7 +63,7 @@ class CourierControllerTest {
                 .thenReturn(new CourierAvailabilityResponse(7L, CourierAvailabilityStatus.AVAILABLE));
 
         mockMvc.perform(patch("/api/v1/couriers/me/availability")
-                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .with(authenticatedAs(7L, Role.COURIER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -73,7 +79,7 @@ class CourierControllerTest {
                 new UpdateCourierAvailabilityRequest(CourierAvailabilityStatus.ON_DELIVERY);
 
         mockMvc.perform(patch("/api/v1/couriers/me/availability")
-                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .with(authenticatedAs(7L, Role.COURIER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -87,7 +93,7 @@ class CourierControllerTest {
         String invalidRequest = "{}";
 
         mockMvc.perform(patch("/api/v1/couriers/me/availability")
-                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .with(authenticatedAs(7L, Role.COURIER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidRequest))
                 .andExpect(status().isBadRequest())
@@ -116,7 +122,7 @@ class CourierControllerTest {
                 new UpdateCourierAvailabilityRequest(CourierAvailabilityStatus.AVAILABLE);
 
         mockMvc.perform(patch("/api/v1/couriers/me/availability")
-                        .header("Authorization", bearerToken(9L, Role.CUSTOMER))
+                        .with(authenticatedAs(9L, Role.CUSTOMER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
@@ -134,7 +140,7 @@ class CourierControllerTest {
                 .thenReturn(new CourierLocationResponse(7L, request.latitude(), request.longitude()));
 
         mockMvc.perform(patch("/api/v1/couriers/me/location")
-                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .with(authenticatedAs(7L, Role.COURIER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -152,7 +158,7 @@ class CourierControllerTest {
                 new BigDecimal("28.978400"));
 
         mockMvc.perform(patch("/api/v1/couriers/me/location")
-                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .with(authenticatedAs(7L, Role.COURIER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -170,7 +176,7 @@ class CourierControllerTest {
                 """;
 
         mockMvc.perform(patch("/api/v1/couriers/me/location")
-                        .header("Authorization", bearerToken(7L, Role.COURIER))
+                        .with(authenticatedAs(7L, Role.COURIER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidRequest))
                 .andExpect(status().isBadRequest())
@@ -201,7 +207,7 @@ class CourierControllerTest {
                 new BigDecimal("28.978400"));
 
         mockMvc.perform(patch("/api/v1/couriers/me/location")
-                        .header("Authorization", bearerToken(9L, Role.CUSTOMER))
+                        .with(authenticatedAs(9L, Role.CUSTOMER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())
@@ -215,7 +221,7 @@ class CourierControllerTest {
         when(courierService.pickupOrder(7L, 11L)).thenReturn(orderResponse(11L, OrderStatus.PICKED_UP));
 
         mockMvc.perform(post("/api/v1/couriers/me/orders/11/pickup")
-                        .header("Authorization", bearerToken(7L, Role.COURIER)))
+                        .with(authenticatedAs(7L, Role.COURIER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(11))
                 .andExpect(jsonPath("$.status").value("PICKED_UP"))
@@ -229,7 +235,7 @@ class CourierControllerTest {
         when(courierService.pickupOrder(7L, 11L)).thenThrow(new OrderNotFoundException(11L));
 
         mockMvc.perform(post("/api/v1/couriers/me/orders/11/pickup")
-                        .header("Authorization", bearerToken(7L, Role.COURIER)))
+                        .with(authenticatedAs(7L, Role.COURIER)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
 
@@ -248,7 +254,7 @@ class CourierControllerTest {
     @Test
     void pickupOrderRejectsNonCourierRole() throws Exception {
         mockMvc.perform(post("/api/v1/couriers/me/orders/11/pickup")
-                        .header("Authorization", bearerToken(9L, Role.CUSTOMER)))
+                        .with(authenticatedAs(9L, Role.CUSTOMER)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
 
@@ -260,7 +266,7 @@ class CourierControllerTest {
         when(courierService.deliverOrder(7L, 11L)).thenReturn(orderResponse(11L, OrderStatus.DELIVERED));
 
         mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver")
-                        .header("Authorization", bearerToken(7L, Role.COURIER)))
+                        .with(authenticatedAs(7L, Role.COURIER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(11))
                 .andExpect(jsonPath("$.status").value("DELIVERED"))
@@ -274,7 +280,7 @@ class CourierControllerTest {
         when(courierService.deliverOrder(7L, 11L)).thenThrow(new OrderNotFoundException(11L));
 
         mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver")
-                        .header("Authorization", bearerToken(7L, Role.COURIER)))
+                        .with(authenticatedAs(7L, Role.COURIER)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
 
@@ -287,7 +293,7 @@ class CourierControllerTest {
                 .thenThrow(new InvalidOrderStatusTransitionException(OrderStatus.ASSIGNED, OrderStatus.DELIVERED));
 
         mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver")
-                        .header("Authorization", bearerToken(7L, Role.COURIER)))
+                        .with(authenticatedAs(7L, Role.COURIER)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INVALID_ORDER_STATUS_TRANSITION"));
 
@@ -306,23 +312,17 @@ class CourierControllerTest {
     @Test
     void deliverOrderRejectsNonCourierRole() throws Exception {
         mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver")
-                        .header("Authorization", bearerToken(9L, Role.CUSTOMER)))
+                        .with(authenticatedAs(9L, Role.CUSTOMER)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
 
         verifyNoInteractions(courierService);
     }
 
-    private String bearerToken(Long userId, Role role) {
-        return "Bearer " + jwtTokenService.generateToken(user(userId, role));
-    }
-
-    private User user(Long id, Role role) {
-        User user = org.mockito.Mockito.mock(User.class);
-        when(user.getId()).thenReturn(id);
-        when(user.getEmail()).thenReturn("user%s@example.com".formatted(id));
-        when(user.getRole()).thenReturn(role);
-        return user;
+    private RequestPostProcessor authenticatedAs(Long userId, Role role) {
+        return jwt()
+                .jwt(token -> token.claim("userId", userId).claim("role", role.name()))
+                .authorities(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
     private DeliveryOrderResponse orderResponse(Long orderId, OrderStatus status) {

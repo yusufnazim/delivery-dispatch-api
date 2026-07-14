@@ -41,8 +41,8 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - PostgreSQL-backed integration coverage for manual assignment conflict behavior.
 - PostgreSQL-backed integration coverage for double-assignment prevention behavior.
 - PostgreSQL-backed integration coverage for invalid delivery status transitions.
+- MVC slice coverage for delivery order and courier request validation, authentication, and role access.
 
 ## Remaining
 
-- Additional integration coverage for dispatch and workflow failure paths.
 - Local demo kit with seed data, HTTP walkthrough, and concise README updates.

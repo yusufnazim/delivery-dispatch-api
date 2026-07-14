@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,35 +15,38 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yusufnazim.deliverydispatch.config.SecurityConfig;
+import com.yusufnazim.deliverydispatch.exception.GlobalExceptionHandler;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
-import com.yusufnazim.deliverydispatch.security.JwtTokenService;
+import com.yusufnazim.deliverydispatch.security.SecurityErrorHandler;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryEventType;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.timeline.dto.DeliveryEventResponse;
 import com.yusufnazim.deliverydispatch.user.Role;
-import com.yusufnazim.deliverydispatch.user.User;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(DeliveryOrderController.class)
+@Import({SecurityConfig.class, SecurityErrorHandler.class, GlobalExceptionHandler.class})
 class DeliveryOrderControllerTest {
 
     private final MockMvc mockMvc;
     private final ObjectMapper objectMapper;
-    private final JwtTokenService jwtTokenService;
 
     @MockitoBean
     private DeliveryOrderService deliveryOrderService;
@@ -50,11 +54,13 @@ class DeliveryOrderControllerTest {
     @MockitoBean
     private DeliveryTimelineService deliveryTimelineService;
 
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
+
     @Autowired
-    DeliveryOrderControllerTest(MockMvc mockMvc, ObjectMapper objectMapper, JwtTokenService jwtTokenService) {
+    DeliveryOrderControllerTest(MockMvc mockMvc, ObjectMapper objectMapper) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
-        this.jwtTokenService = jwtTokenService;
     }
 
     @Test
@@ -74,7 +80,7 @@ class DeliveryOrderControllerTest {
         when(deliveryOrderService.createOrder(anyLong(), any(CreateDeliveryOrderRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/orders")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER))
+                        .with(authenticatedAs(7L, Role.CUSTOMER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -110,7 +116,7 @@ class DeliveryOrderControllerTest {
                 """;
 
         mockMvc.perform(post("/api/v1/orders")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER))
+                        .with(authenticatedAs(7L, Role.CUSTOMER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidRequest))
                 .andExpect(status().isBadRequest())
@@ -133,7 +139,7 @@ class DeliveryOrderControllerTest {
     @Test
     void createOrderRejectsNonCustomerRole() throws Exception {
         mockMvc.perform(post("/api/v1/orders")
-                        .header("Authorization", bearerToken(9L, Role.COURIER))
+                        .with(authenticatedAs(9L, Role.COURIER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validRequest())))
                 .andExpect(status().isForbidden())
@@ -150,7 +156,7 @@ class DeliveryOrderControllerTest {
                         orderResponse(11L, "Pickup A")));
 
         mockMvc.perform(get("/api/v1/orders")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                        .with(authenticatedAs(7L, Role.CUSTOMER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(12))
                 .andExpect(jsonPath("$[0].pickupAddress").value("Pickup B"))
@@ -165,7 +171,7 @@ class DeliveryOrderControllerTest {
         when(deliveryOrderService.getCustomerOrder(7L, 11L)).thenReturn(orderResponse(11L, "Pickup A"));
 
         mockMvc.perform(get("/api/v1/orders/11")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                        .with(authenticatedAs(7L, Role.CUSTOMER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(11))
                 .andExpect(jsonPath("$.status").value("PENDING"))
@@ -188,7 +194,7 @@ class DeliveryOrderControllerTest {
                                 Instant.parse("2026-07-09T10:20:00Z"))));
 
         mockMvc.perform(get("/api/v1/orders/11/timeline")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                        .with(authenticatedAs(7L, Role.CUSTOMER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].type").value("ORDER_CREATED"))
                 .andExpect(jsonPath("$[0].description").value("Order created"))
@@ -206,7 +212,7 @@ class DeliveryOrderControllerTest {
                 .thenThrow(new OrderNotFoundException(404L));
 
         mockMvc.perform(get("/api/v1/orders/404/timeline")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                        .with(authenticatedAs(7L, Role.CUSTOMER)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
     }
@@ -217,7 +223,7 @@ class DeliveryOrderControllerTest {
                 .thenThrow(new OrderNotFoundException(404L));
 
         mockMvc.perform(get("/api/v1/orders/404")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                        .with(authenticatedAs(7L, Role.CUSTOMER)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
     }
@@ -228,7 +234,7 @@ class DeliveryOrderControllerTest {
         when(deliveryOrderService.cancelCustomerOrder(7L, 11L)).thenReturn(response);
 
         mockMvc.perform(delete("/api/v1/orders/11")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                        .with(authenticatedAs(7L, Role.CUSTOMER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(11))
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
@@ -243,7 +249,7 @@ class DeliveryOrderControllerTest {
                 .thenThrow(new OrderNotFoundException(404L));
 
         mockMvc.perform(delete("/api/v1/orders/404")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                        .with(authenticatedAs(7L, Role.CUSTOMER)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
     }
@@ -254,7 +260,7 @@ class DeliveryOrderControllerTest {
                 .thenThrow(new OrderCancellationNotAllowedException(OrderStatus.ASSIGNED));
 
         mockMvc.perform(delete("/api/v1/orders/11")
-                        .header("Authorization", bearerToken(7L, Role.CUSTOMER)))
+                        .with(authenticatedAs(7L, Role.CUSTOMER)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ORDER_CANCELLATION_NOT_ALLOWED"));
     }
@@ -271,7 +277,7 @@ class DeliveryOrderControllerTest {
     @Test
     void cancelOrderRejectsNonCustomerRole() throws Exception {
         mockMvc.perform(delete("/api/v1/orders/11")
-                        .header("Authorization", bearerToken(9L, Role.DISPATCHER)))
+                        .with(authenticatedAs(9L, Role.DISPATCHER)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
 
@@ -299,7 +305,7 @@ class DeliveryOrderControllerTest {
     @Test
     void getOrderRejectsNonCustomerRole() throws Exception {
         mockMvc.perform(get("/api/v1/orders/11")
-                        .header("Authorization", bearerToken(9L, Role.DISPATCHER)))
+                        .with(authenticatedAs(9L, Role.DISPATCHER)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
 
@@ -309,7 +315,7 @@ class DeliveryOrderControllerTest {
     @Test
     void getOrderTimelineRejectsNonCustomerRole() throws Exception {
         mockMvc.perform(get("/api/v1/orders/11/timeline")
-                        .header("Authorization", bearerToken(9L, Role.DISPATCHER)))
+                        .with(authenticatedAs(9L, Role.DISPATCHER)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
 
@@ -344,15 +350,9 @@ class DeliveryOrderControllerTest {
                 Instant.parse("2026-06-30T10:05:00Z"));
     }
 
-    private String bearerToken(Long userId, Role role) {
-        return "Bearer " + jwtTokenService.generateToken(user(userId, role));
-    }
-
-    private User user(Long id, Role role) {
-        User user = org.mockito.Mockito.mock(User.class);
-        when(user.getId()).thenReturn(id);
-        when(user.getEmail()).thenReturn("user%s@example.com".formatted(id));
-        when(user.getRole()).thenReturn(role);
-        return user;
+    private RequestPostProcessor authenticatedAs(Long userId, Role role) {
+        return jwt()
+                .jwt(token -> token.claim("userId", userId).claim("role", role.name()))
+                .authorities(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 }
