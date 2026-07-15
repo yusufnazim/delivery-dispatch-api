@@ -13,3 +13,5 @@ spring:
 app:
   jwt:
     secret: local-development-jwt-secret-change-me
+  demo-data:
+    enabled: ${DEMO_DATA_ENABLED:true}

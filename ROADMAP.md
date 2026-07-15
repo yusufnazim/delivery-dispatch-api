@@ -42,7 +42,8 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - PostgreSQL-backed integration coverage for double-assignment prevention behavior.
 - PostgreSQL-backed integration coverage for invalid delivery status transitions.
 - MVC slice coverage for delivery order and courier request validation, authentication, and role access.
+- Local-profile demo data for every user role, two available couriers with locations, and pending and completed sample orders with timeline history.
 
 ## Remaining
 
-- Local demo kit with seed data, HTTP walkthrough, and concise README updates.
+- Complete the local demo kit with an HTTP walkthrough, OpenAPI polish, and concise README updates.
