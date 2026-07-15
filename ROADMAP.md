@@ -43,7 +43,8 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - PostgreSQL-backed integration coverage for invalid delivery status transitions.
 - MVC slice coverage for delivery order and courier request validation, authentication, and role access.
 - Local-profile demo data for every user role, two available couriers with locations, and pending and completed sample orders with timeline history.
+- OpenAPI operation documentation with endpoint summaries, role requirements, response descriptions, and a reusable JWT bearer security scheme.
 
 ## Remaining
 
-- Complete the local demo kit with an HTTP walkthrough, OpenAPI polish, and concise README updates.
+- Complete the local demo kit with an HTTP walkthrough, aligned API requests, and concise README updates.
