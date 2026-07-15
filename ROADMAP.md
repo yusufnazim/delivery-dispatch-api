@@ -45,7 +45,9 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Local-profile demo data for every user role, two available couriers with locations, and pending and completed sample orders with timeline history.
 - OpenAPI operation documentation with endpoint summaries, role requirements, response descriptions, and a reusable JWT bearer security scheme.
 - README local development guide covering prerequisites, Docker and profile startup, demo accounts, configuration, tests, and database operations.
+- Runnable local API walkthrough for customer login, seeded timeline review, order creation, and courier location and availability updates.
 
 ## Remaining
 
-- Complete the local demo kit with an HTTP walkthrough and aligned API requests.
+- Expose auto-dispatch and manual assignment through dispatcher/admin endpoints.
+- Complete the full lifecycle walkthrough and align the runnable API requests.

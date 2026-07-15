@@ -31,6 +31,7 @@ Planned documentation and final portfolio work are tracked separately in [ROADMA
 
 - JDK 21
 - Docker with Docker Compose
+- `curl` for the local walkthrough
 
 Maven does not need to be installed because the repository includes `./mvnw`.
 
@@ -77,6 +78,87 @@ Disable demo data when starting the local profile with:
 ```bash
 DEMO_DATA_ENABLED=false ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
+
+## Local API Walkthrough
+
+Start PostgreSQL and the API as described in Quick Start before running these requests.
+
+1. Log in as the seeded customer:
+
+```bash
+curl -s http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"customer@delivery.local","password":"DemoPass123!"}'
+```
+
+Copy the `token` value from the response:
+
+```bash
+export CUSTOMER_TOKEN='<customer-jwt>'
+```
+
+2. List the customer's seeded orders:
+
+```bash
+curl -s http://localhost:8080/api/v1/orders \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN"
+```
+
+Copy the `id` of the order whose status is `DELIVERED`, then inspect its chronological timeline:
+
+```bash
+export DELIVERED_ORDER_ID='<delivered-order-id>'
+
+curl -s "http://localhost:8080/api/v1/orders/$DELIVERED_ORDER_ID/timeline" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN"
+```
+
+The response shows `ORDER_CREATED`, `COURIER_ASSIGNED`, `ORDER_PICKED_UP`, and `ORDER_DELIVERED` events.
+
+3. Create a new pending order:
+
+```bash
+curl -s http://localhost:8080/api/v1/orders \
+  -X POST \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pickupAddress":"Taksim Square, Beyoglu",
+    "pickupLatitude":41.036900,
+    "pickupLongitude":28.985000,
+    "dropoffAddress":"Kadikoy Pier",
+    "dropoffLatitude":40.990900,
+    "dropoffLongitude":29.023300
+  }'
+```
+
+4. Log in as a seeded courier and copy the returned token:
+
+```bash
+curl -s http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"courier.one@delivery.local","password":"DemoPass123!"}'
+
+export COURIER_TOKEN='<courier-jwt>'
+```
+
+5. Update the courier's location and availability:
+
+```bash
+curl -s http://localhost:8080/api/v1/couriers/me/location \
+  -X PATCH \
+  -H "Authorization: Bearer $COURIER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"latitude":41.032000,"longitude":28.978000}'
+
+curl -s http://localhost:8080/api/v1/couriers/me/availability \
+  -X PATCH \
+  -H "Authorization: Bearer $COURIER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"AVAILABLE"}'
+```
+
+The public HTTP surface currently stops before assigning the new order. Auto-dispatch and manual assignment are implemented and integration-tested in the service layer, but their dispatcher/admin endpoints remain planned. The seeded delivered order provides a complete timeline for review until those endpoints are exposed.
 
 ## Configuration
 
