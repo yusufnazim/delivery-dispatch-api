@@ -1,108 +1,153 @@
 # Delivery Dispatch API
 
-Spring Boot backend for a delivery dispatch workflow, built as a junior backend engineering portfolio project.
+Spring Boot REST API for customer delivery orders, courier dispatch rules, and delivery lifecycle tracking.
+
+## Shipped Capabilities
+
+- JWT authentication with `ADMIN`, `DISPATCHER`, `COURIER`, and `CUSTOMER` roles.
+- Customer registration, login, order creation, lookup, cancellation, and timeline endpoints.
+- Courier availability, location, pickup, and delivery endpoints.
+- Nearest-courier selection using Haversine distance and stored coordinates.
+- Transactional assignment rules that prevent double assignment and limit couriers to one active delivery.
+- PostgreSQL persistence managed by versioned Flyway migrations.
+- Structured validation, authentication, authorization, and domain error responses.
+- PostgreSQL-backed integration tests using Testcontainers.
+- OpenAPI operation and JWT bearer documentation.
+
+Planned documentation and final portfolio work are tracked separately in [ROADMAP.md](ROADMAP.md).
 
 ## Tech Stack
 
 - Java 21
-- Spring Boot
-- Spring Web MVC
-- Spring Security
-- Spring Data JPA
-- Jakarta Validation
-- OpenAPI
-- PostgreSQL
-- Flyway
+- Spring Boot 3
+- Spring Web MVC and Spring Security
+- Spring Data JPA and Jakarta Validation
+- PostgreSQL and Flyway
 - Testcontainers
-- Maven
+- OpenAPI
+- Maven Wrapper
 
-## Local Development
+## Prerequisites
 
-Run tests:
+- JDK 21
+- Docker with Docker Compose
 
-```bash
-./mvnw test
-```
+Maven does not need to be installed because the repository includes `./mvnw`.
 
-Start the API with the local profile:
+## Quick Start
 
-```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
-```
-
-Start local PostgreSQL:
+1. Start PostgreSQL:
 
 ```bash
 docker compose up -d postgres
 ```
 
-If port `5432` is already in use locally, start PostgreSQL on another host port:
+2. Start the API with the local profile:
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+Flyway applies pending migrations during startup. The local profile also loads idempotent demo data by default.
+
+3. Check the application:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+The OpenAPI JSON document is available at `http://localhost:8080/v3/api-docs`. Runnable request examples are in [api-tests.http](api-tests.http).
+
+## Demo Accounts
+
+All local demo accounts use the password `DemoPass123!`.
+
+| Email | Role |
+| --- | --- |
+| `admin@delivery.local` | `ADMIN` |
+| `dispatcher@delivery.local` | `DISPATCHER` |
+| `customer@delivery.local` | `CUSTOMER` |
+| `courier.one@delivery.local` | `COURIER` |
+| `courier.two@delivery.local` | `COURIER` |
+
+The seed includes two available couriers with locations, one pending order, one delivered order, and matching timeline events. Restarting the application does not duplicate this data.
+
+Disable demo data when starting the local profile with:
+
+```bash
+DEMO_DATA_ENABLED=false ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+## Configuration
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `POSTGRES_PORT` | Local PostgreSQL host port | `5432` |
+| `JWT_ISSUER` | JWT issuer claim | `delivery-dispatch-api` |
+| `JWT_SECRET` | JWT signing secret outside local development | No non-local default |
+| `JWT_EXPIRATION` | JWT lifetime | `1h` |
+| `DEMO_DATA_ENABLED` | Enable local demo seed data | `true` in the local profile |
+
+The local profile provides development-only database credentials and a JWT secret. Do not reuse them outside local development.
+
+If port `5432` is already in use, run both PostgreSQL and the API with another port:
 
 ```bash
 POSTGRES_PORT=5433 docker compose up -d postgres
-```
-
-Then run the API with the same port:
-
-```bash
 POSTGRES_PORT=5433 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-Stop local PostgreSQL:
+## Testing
+
+Run the complete test suite:
+
+```bash
+./mvnw test
+```
+
+Run the full Maven verification lifecycle and build the application jar:
+
+```bash
+./mvnw verify
+```
+
+Docker must be available for the PostgreSQL Testcontainers integration tests.
+
+## Database Operations
+
+Check the PostgreSQL container:
+
+```bash
+docker compose ps
+```
+
+Stop PostgreSQL while preserving its named data volume:
 
 ```bash
 docker compose down
 ```
 
-Stop local PostgreSQL and remove its data volume:
+Stop PostgreSQL and remove local database data:
 
 ```bash
 docker compose down -v
 ```
 
-Database schema changes are managed with Flyway migrations in `src/main/resources/db/migration`.
-
-The OpenAPI JSON document is available locally at:
-
-```text
-http://localhost:8080/v3/api-docs
-```
-
-Runnable HTTP examples are kept in `api-tests.http`.
-
-Application endpoints use versioned paths under `/api/v1`.
+Flyway migrations are stored in `src/main/resources/db/migration`. Hibernate validates the mapped schema and does not update it automatically.
 
 ## Authentication
 
-The API currently supports JWT-based authentication for the delivery dispatch user model.
+Application endpoints are versioned under `/api/v1`.
 
-| Method | Path | Access | Description |
-| --- | --- | --- | --- |
-| `POST` | `/api/v1/auth/register` | Public | Register a customer account. |
-| `POST` | `/api/v1/auth/login` | Public | Log in with email and password and receive a JWT. |
-| `POST` | `/api/v1/auth/users` | `ADMIN` only | Create dispatcher or courier accounts. |
+Public endpoints:
 
-Registration and login normalize email addresses by trimming whitespace and lowercasing them. Passwords are stored with BCrypt hashes, not plaintext values.
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
 
-JWTs include the authenticated user's role. Protected endpoints expect the token in this format:
+Protected endpoints expect the JWT returned by login:
 
 ```text
 Authorization: Bearer <jwt>
 ```
 
-The managed user creation endpoint requires an existing admin token and only accepts `DISPATCHER` or `COURIER` as the new user's role. Customer accounts are created through `/api/v1/auth/register`.
-
-Auth errors use structured JSON responses:
-
-- `400 Bad Request` for validation failures.
-- `401 Unauthorized` for missing or invalid credentials.
-- `403 Forbidden` for authenticated users without the required role.
-- `409 Conflict` for duplicate email addresses.
-
-JWT settings are configured through `app.jwt` properties:
-
-- `JWT_SECRET` must be set outside local development and must be at least 32 characters.
-- `JWT_ISSUER` defaults to `delivery-dispatch-api`.
-- `JWT_EXPIRATION` defaults to `1h`.
-
-The `local` profile provides a development-only JWT secret so the API can run locally without production secrets.
+`POST /api/v1/auth/users` requires the `ADMIN` role and creates only `DISPATCHER` or `COURIER` accounts. Customer accounts use the public registration endpoint. Email addresses are trimmed and lowercased, and passwords are stored as BCrypt hashes.

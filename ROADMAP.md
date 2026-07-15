@@ -44,7 +44,8 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - MVC slice coverage for delivery order and courier request validation, authentication, and role access.
 - Local-profile demo data for every user role, two available couriers with locations, and pending and completed sample orders with timeline history.
 - OpenAPI operation documentation with endpoint summaries, role requirements, response descriptions, and a reusable JWT bearer security scheme.
+- README local development guide covering prerequisites, Docker and profile startup, demo accounts, configuration, tests, and database operations.
 
 ## Remaining
 
-- Complete the local demo kit with an HTTP walkthrough, aligned API requests, and concise README updates.
+- Complete the local demo kit with an HTTP walkthrough and aligned API requests.
