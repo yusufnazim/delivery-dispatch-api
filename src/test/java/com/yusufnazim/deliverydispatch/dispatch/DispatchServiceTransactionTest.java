@@ -53,17 +53,17 @@ class DispatchServiceTransactionTest {
     }
 
     @Test
-    void assignNearestEligibleCourierRunsInsideWriteTransaction() {
+    void autoAssignOrderRunsInsideWriteTransaction() {
         DeliveryOrder order = order();
         User courier = courierAt("courier@example.com", "41.037200", "28.985300");
         repositoryStubs.orderById = Optional.of(order);
         repositoryStubs.eligibleCouriers = List.of(courier);
 
-        dispatchService.assignNearestEligibleCourier(100L);
+        dispatchService.autoAssignOrder(100L);
 
         TransactionBoundary boundary = onlyTransactionBoundary();
         assertThat(AopUtils.isAopProxy(dispatchService)).isTrue();
-        assertThat(boundary.name()).endsWith("DispatchService.assignNearestEligibleCourier");
+        assertThat(boundary.name()).endsWith("DispatchService.autoAssignOrder");
         assertThat(boundary.readOnly()).isFalse();
         assertThat(transactionManager.commits()).isEqualTo(1);
         assertThat(transactionManager.rollbacks()).isZero();

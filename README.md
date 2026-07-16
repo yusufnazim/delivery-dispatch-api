@@ -132,6 +132,12 @@ curl -s http://localhost:8080/api/v1/orders \
   }'
 ```
 
+Copy the new order's `id` from the response:
+
+```bash
+export NEW_ORDER_ID='<new-order-id>'
+```
+
 4. Log in as a seeded courier and copy the returned token:
 
 ```bash
@@ -158,7 +164,42 @@ curl -s http://localhost:8080/api/v1/couriers/me/availability \
   -d '{"status":"AVAILABLE"}'
 ```
 
-The public HTTP surface currently stops before assigning the new order. Auto-dispatch and manual assignment are implemented and integration-tested in the service layer, but their dispatcher/admin endpoints remain planned. The seeded delivered order provides a complete timeline for review until those endpoints are exposed.
+6. Log in as the seeded dispatcher and auto-assign the nearest eligible courier:
+
+```bash
+curl -s http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"dispatcher@delivery.local","password":"DemoPass123!"}'
+
+export DISPATCHER_TOKEN='<dispatcher-jwt>'
+
+curl -s "http://localhost:8080/api/v1/dispatch/orders/$NEW_ORDER_ID/auto-assign" \
+  -X POST \
+  -H "Authorization: Bearer $DISPATCHER_TOKEN"
+```
+
+The assignment response identifies the selected courier. With the seeded locations and the location update above, `courier.one@delivery.local` is selected.
+
+7. Pick up and deliver the assigned order:
+
+```bash
+curl -s "http://localhost:8080/api/v1/couriers/me/orders/$NEW_ORDER_ID/pickup" \
+  -X POST \
+  -H "Authorization: Bearer $COURIER_TOKEN"
+
+curl -s "http://localhost:8080/api/v1/couriers/me/orders/$NEW_ORDER_ID/deliver" \
+  -X POST \
+  -H "Authorization: Bearer $COURIER_TOKEN"
+```
+
+8. Inspect the completed timeline:
+
+```bash
+curl -s "http://localhost:8080/api/v1/orders/$NEW_ORDER_ID/timeline" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN"
+```
+
+The new order now has the complete created, assigned, picked-up, and delivered event sequence.
 
 ## Configuration
 

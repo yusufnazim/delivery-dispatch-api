@@ -46,8 +46,9 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - OpenAPI operation documentation with endpoint summaries, role requirements, response descriptions, and a reusable JWT bearer security scheme.
 - README local development guide covering prerequisites, Docker and profile startup, demo accounts, configuration, tests, and database operations.
 - Runnable local API walkthrough for customer login, seeded timeline review, order creation, and courier location and availability updates.
+- Dispatcher/admin auto-assignment endpoint that returns the selected courier and delegates to the transactional nearest-courier dispatch service.
+- Full local delivery walkthrough from order creation through auto-assignment, pickup, delivery, and timeline review.
 
 ## Remaining
 
-- Expose auto-dispatch and manual assignment through dispatcher/admin endpoints.
-- Complete the full lifecycle walkthrough and align the runnable API requests.
+- Expose manual courier assignment through a dispatcher/admin endpoint.

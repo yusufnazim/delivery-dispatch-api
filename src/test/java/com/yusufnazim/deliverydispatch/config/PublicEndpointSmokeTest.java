@@ -36,7 +36,11 @@ class PublicEndpointSmokeTest {
 				.andExpect(jsonPath("$.paths['/api/v1/couriers/me/availability'].patch.summary")
 						.value("Update courier availability"))
 				.andExpect(jsonPath("$.paths['/api/v1/couriers/me/availability'].patch.responses['403']")
-						.exists());
+						.exists())
+				.andExpect(jsonPath("$.paths['/api/v1/dispatch/orders/{orderId}/auto-assign'].post.summary")
+						.value("Auto-assign an order"))
+				.andExpect(jsonPath("$.paths['/api/v1/dispatch/orders/{orderId}/auto-assign'].post.security[0].bearerAuth")
+						.isArray());
 	}
 
 	@Test

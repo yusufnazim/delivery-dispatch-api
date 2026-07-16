@@ -4,6 +4,7 @@ import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundExceptio
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierAlreadyHasActiveDeliveryException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
+import com.yusufnazim.deliverydispatch.dispatch.dto.DispatchAssignmentResponse;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
@@ -54,6 +55,11 @@ public class DispatchService {
                 .min((firstCourier, secondCourier) -> Double.compare(
                         distanceToPickup(firstCourier, pickupLatitude, pickupLongitude),
                         distanceToPickup(secondCourier, pickupLatitude, pickupLongitude)));
+    }
+
+    @Transactional
+    public DispatchAssignmentResponse autoAssignOrder(Long orderId) {
+        return DispatchAssignmentResponse.from(assignNearestEligibleCourier(orderId));
     }
 
     @Transactional

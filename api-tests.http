@@ -1,5 +1,6 @@
 @baseUrl = http://localhost:8080
 @adminToken = replace-with-admin-jwt
+@dispatcherToken = replace-with-dispatcher-jwt
 @customerToken = replace-with-customer-jwt
 @courierToken = replace-with-courier-jwt
 
@@ -76,6 +77,10 @@ Content-Type: application/json
 {
   "status": "AVAILABLE"
 }
+
+### Auto-assign nearest eligible courier
+POST {{baseUrl}}/api/v1/dispatch/orders/1/auto-assign
+Authorization: Bearer {{dispatcherToken}}
 
 ### Update courier location
 PATCH {{baseUrl}}/api/v1/couriers/me/location
