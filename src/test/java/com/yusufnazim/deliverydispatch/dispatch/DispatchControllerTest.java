@@ -4,6 +4,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,11 +15,16 @@ import com.yusufnazim.deliverydispatch.dispatch.dto.DispatchAssignmentResponse;
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.NoEligibleCourierException;
 import com.yusufnazim.deliverydispatch.exception.GlobalExceptionHandler;
+import com.yusufnazim.deliverydispatch.order.DeliveryOrderService;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
+import com.yusufnazim.deliverydispatch.order.dto.OperationalOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.security.SecurityErrorHandler;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -38,6 +44,9 @@ class DispatchControllerTest {
 
     @MockitoBean
     private DispatchService dispatchService;
+
+    @MockitoBean
+    private DeliveryOrderService deliveryOrderService;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
@@ -60,6 +69,55 @@ class DispatchControllerTest {
                 .andExpect(jsonPath("$.status").value("ASSIGNED"));
 
         verify(dispatchService).autoAssignOrder(11L);
+    }
+
+    @Test
+    void listOperationalOrdersReturnsOrdersForDispatcher() throws Exception {
+        when(deliveryOrderService.listOperationalOrders()).thenReturn(List.of(operationalOrderResponse()));
+
+        mockMvc.perform(get("/api/v1/dispatch/orders")
+                        .with(authenticatedAs(Role.DISPATCHER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(11))
+                .andExpect(jsonPath("$[0].status").value("ASSIGNED"))
+                .andExpect(jsonPath("$[0].customerId").value(3))
+                .andExpect(jsonPath("$[0].customerEmail").value("customer@example.com"))
+                .andExpect(jsonPath("$[0].courierId").value(7))
+                .andExpect(jsonPath("$[0].courierEmail").value("courier@example.com"))
+                .andExpect(jsonPath("$[0].pickupAddress").value("Pickup"));
+
+        verify(deliveryOrderService).listOperationalOrders();
+    }
+
+    @Test
+    void listOperationalOrdersAllowsAdmin() throws Exception {
+        when(deliveryOrderService.listOperationalOrders()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/dispatch/orders")
+                        .with(authenticatedAs(Role.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        verify(deliveryOrderService).listOperationalOrders();
+    }
+
+    @Test
+    void listOperationalOrdersRejectsMissingBearerToken() throws Exception {
+        mockMvc.perform(get("/api/v1/dispatch/orders"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        verifyNoInteractions(deliveryOrderService);
+    }
+
+    @Test
+    void listOperationalOrdersRejectsUnsupportedRole() throws Exception {
+        mockMvc.perform(get("/api/v1/dispatch/orders")
+                        .with(authenticatedAs(Role.CUSTOMER)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        verifyNoInteractions(deliveryOrderService);
     }
 
     @Test
@@ -222,6 +280,25 @@ class DispatchControllerTest {
         return jwt()
                 .jwt(token -> token.claim("userId", 5L).claim("role", role.name()))
                 .authorities(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
+
+    private OperationalOrderResponse operationalOrderResponse() {
+        return new OperationalOrderResponse(
+                11L,
+                OrderStatus.ASSIGNED,
+                3L,
+                "customer@example.com",
+                7L,
+                "courier@example.com",
+                "Ayse Courier",
+                "Pickup",
+                new BigDecimal("41.036900"),
+                new BigDecimal("28.985000"),
+                "Dropoff",
+                new BigDecimal("40.970000"),
+                new BigDecimal("29.057000"),
+                Instant.parse("2026-07-17T09:00:00Z"),
+                Instant.parse("2026-07-17T09:05:00Z"));
     }
 
 }

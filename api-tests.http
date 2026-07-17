@@ -82,6 +82,10 @@ Content-Type: application/json
 POST {{baseUrl}}/api/v1/dispatch/orders/1/auto-assign
 Authorization: Bearer {{dispatcherToken}}
 
+### List operational orders
+GET {{baseUrl}}/api/v1/dispatch/orders
+Authorization: Bearer {{dispatcherToken}}
+
 ### Manually assign a courier
 POST {{baseUrl}}/api/v1/dispatch/orders/1/assign
 Authorization: Bearer {{dispatcherToken}}

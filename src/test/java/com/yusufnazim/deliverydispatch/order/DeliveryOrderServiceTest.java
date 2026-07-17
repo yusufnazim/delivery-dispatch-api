@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
+import com.yusufnazim.deliverydispatch.order.dto.OperationalOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
@@ -136,6 +137,36 @@ class DeliveryOrderServiceTest {
         assertThat(responses)
                 .extracting(DeliveryOrderResponse::pickupAddress)
                 .containsExactly("Pickup B", "Pickup A");
+    }
+
+    @Test
+    void listOperationalOrdersIncludesCustomerAndCourierDetails() {
+        User customer = org.mockito.Mockito.mock(User.class);
+        when(customer.getId()).thenReturn(3L);
+        when(customer.getEmail()).thenReturn("customer@example.com");
+        User courier = org.mockito.Mockito.mock(User.class);
+        when(courier.getId()).thenReturn(7L);
+        when(courier.getEmail()).thenReturn("courier@example.com");
+        when(courier.getCourierDisplayName()).thenReturn("Ayse Courier");
+        DeliveryOrder assignedOrder = order(12L, OrderStatus.ASSIGNED, "Pickup B");
+        when(assignedOrder.getCustomer()).thenReturn(customer);
+        when(assignedOrder.getCourier()).thenReturn(courier);
+        DeliveryOrder pendingOrder = order(11L, OrderStatus.PENDING, "Pickup A");
+        when(pendingOrder.getCustomer()).thenReturn(customer);
+        when(deliveryOrderRepository.findAllByOrderByCreatedAtDescIdDesc())
+                .thenReturn(List.of(assignedOrder, pendingOrder));
+
+        List<OperationalOrderResponse> responses = deliveryOrderService.listOperationalOrders();
+
+        assertThat(responses)
+                .extracting(OperationalOrderResponse::id)
+                .containsExactly(12L, 11L);
+        assertThat(responses.getFirst().customerId()).isEqualTo(3L);
+        assertThat(responses.getFirst().customerEmail()).isEqualTo("customer@example.com");
+        assertThat(responses.getFirst().courierId()).isEqualTo(7L);
+        assertThat(responses.getFirst().courierEmail()).isEqualTo("courier@example.com");
+        assertThat(responses.getFirst().courierDisplayName()).isEqualTo("Ayse Courier");
+        assertThat(responses.getLast().courierId()).isNull();
     }
 
     @Test

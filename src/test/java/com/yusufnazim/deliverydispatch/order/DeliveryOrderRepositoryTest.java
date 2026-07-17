@@ -8,6 +8,7 @@ import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -97,6 +98,32 @@ class DeliveryOrderRepositoryTest {
         assertThat(orders)
                 .extracting(DeliveryOrder::getId)
                 .containsExactly(secondOrder.getId(), firstOrder.getId());
+    }
+
+    @Test
+    void findsOperationalOrdersWithCustomerAndCourierLoaded() {
+        User customer = userRepository.save(new User(
+                "operations-customer@example.com",
+                "hashed-password",
+                Role.CUSTOMER));
+        User courier = userRepository.save(new User(
+                "operations-courier@example.com",
+                "hashed-password",
+                Role.COURIER));
+        DeliveryOrder firstOrder = deliveryOrderRepository.save(orderFor(customer, "Pickup A"));
+        DeliveryOrder secondOrder = orderFor(customer, "Pickup B");
+        secondOrder.assignCourier(courier);
+        deliveryOrderRepository.saveAndFlush(secondOrder);
+        entityManager.clear();
+
+        List<DeliveryOrder> orders = deliveryOrderRepository.findAllByOrderByCreatedAtDescIdDesc();
+
+        assertThat(orders)
+                .extracting(DeliveryOrder::getId)
+                .containsExactly(secondOrder.getId(), firstOrder.getId());
+        assertThat(orders)
+                .allSatisfy(order -> assertThat(Hibernate.isInitialized(order.getCustomer())).isTrue());
+        assertThat(Hibernate.isInitialized(orders.getFirst().getCourier())).isTrue();
     }
 
     @Test

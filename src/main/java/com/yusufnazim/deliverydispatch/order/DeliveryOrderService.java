@@ -2,6 +2,7 @@ package com.yusufnazim.deliverydispatch.order;
 
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
+import com.yusufnazim.deliverydispatch.order.dto.OperationalOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.CustomerNotFoundException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
@@ -52,6 +53,13 @@ public class DeliveryOrderService {
     public List<DeliveryOrderResponse> listCustomerOrders(Long customerId) {
         return deliveryOrderRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(customerId).stream()
                 .map(DeliveryOrderResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OperationalOrderResponse> listOperationalOrders() {
+        return deliveryOrderRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
+                .map(OperationalOrderResponse::from)
                 .toList();
     }
 

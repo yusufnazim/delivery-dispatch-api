@@ -42,7 +42,9 @@ class PublicEndpointSmokeTest {
 				.andExpect(jsonPath("$.paths['/api/v1/dispatch/orders/{orderId}/auto-assign'].post.security[0].bearerAuth")
 						.isArray())
 				.andExpect(jsonPath("$.paths['/api/v1/dispatch/orders/{orderId}/assign'].post.summary")
-						.value("Manually assign an order"));
+						.value("Manually assign an order"))
+				.andExpect(jsonPath("$.paths['/api/v1/dispatch/orders'].get.summary")
+						.value("List operational orders"));
 	}
 
 	@Test
