@@ -13,6 +13,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByIdAndRole(Long id, Role role);
 
+    List<User> findByRoleOrderByIdAsc(Role role);
+
     @Query("""
             select user
             from User user

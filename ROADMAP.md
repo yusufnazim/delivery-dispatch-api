@@ -49,8 +49,9 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Dispatcher/admin auto-assignment endpoint that returns the selected courier and delegates to the transactional nearest-courier dispatch service.
 - Dispatcher/admin manual-assignment endpoint with validated courier selection and existing eligibility/conflict rules.
 - Dispatcher/admin operational order listing with customer, courier, route, status, and timestamp details.
+- Dispatcher/admin courier listing with profile, availability, and stored location details.
 - Full local delivery walkthrough from order creation through auto-assignment, pickup, delivery, and timeline review.
 
 ## Remaining
 
-- Add dispatcher/admin courier listing.
+- Complete final portfolio preparation and verification.

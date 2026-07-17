@@ -139,6 +139,21 @@ class UserRepositoryTest {
     }
 
     @Test
+    void findsAllCouriersOrderedById() {
+        User firstCourier = new User("first-courier@example.com", "hashed-password", Role.COURIER);
+        User customer = new User("listing-customer@example.com", "hashed-password", Role.CUSTOMER);
+        User secondCourier = new User("second-courier@example.com", "hashed-password", Role.COURIER);
+        userRepository.saveAllAndFlush(List.of(firstCourier, customer, secondCourier));
+        entityManager.clear();
+
+        List<User> couriers = userRepository.findByRoleOrderByIdAsc(Role.COURIER);
+
+        assertThat(couriers)
+                .extracting(User::getEmail)
+                .containsExactly("first-courier@example.com", "second-courier@example.com");
+    }
+
+    @Test
     void savesNonCourierUserWithoutCourierProfileFields() {
         User customer = new User("customer@example.com", "hashed-password", Role.CUSTOMER);
 

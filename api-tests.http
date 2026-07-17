@@ -86,6 +86,10 @@ Authorization: Bearer {{dispatcherToken}}
 GET {{baseUrl}}/api/v1/dispatch/orders
 Authorization: Bearer {{dispatcherToken}}
 
+### List operational couriers
+GET {{baseUrl}}/api/v1/dispatch/couriers
+Authorization: Bearer {{dispatcherToken}}
+
 ### Manually assign a courier
 POST {{baseUrl}}/api/v1/dispatch/orders/1/assign
 Authorization: Bearer {{dispatcherToken}}

@@ -44,7 +44,9 @@ class PublicEndpointSmokeTest {
 				.andExpect(jsonPath("$.paths['/api/v1/dispatch/orders/{orderId}/assign'].post.summary")
 						.value("Manually assign an order"))
 				.andExpect(jsonPath("$.paths['/api/v1/dispatch/orders'].get.summary")
-						.value("List operational orders"));
+						.value("List operational orders"))
+				.andExpect(jsonPath("$.paths['/api/v1/dispatch/couriers'].get.summary")
+						.value("List operational couriers"));
 	}
 
 	@Test

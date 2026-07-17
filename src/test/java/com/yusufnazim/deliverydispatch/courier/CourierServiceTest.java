@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.CourierLocationResponse;
+import com.yusufnazim.deliverydispatch.courier.dto.OperationalCourierResponse;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
@@ -17,11 +18,13 @@ import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransit
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
+import com.yusufnazim.deliverydispatch.user.CourierVehicleType;
 import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +47,32 @@ class CourierServiceTest {
 
     @InjectMocks
     private CourierService courierService;
+
+    @Test
+    void listOperationalCouriersReturnsProfileAvailabilityAndLocation() {
+        User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
+        courier.updateCourierProfile("Ayse Courier", "+905551112233", CourierVehicleType.MOTORBIKE);
+        courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+        courier.updateCourierLocation(new BigDecimal("41.008200"), new BigDecimal("28.978400"));
+        ReflectionTestUtils.setField(courier, "id", 7L);
+        ReflectionTestUtils.setField(courier, "createdAt", Instant.parse("2026-07-17T09:00:00Z"));
+        ReflectionTestUtils.setField(courier, "updatedAt", Instant.parse("2026-07-17T09:05:00Z"));
+        when(userRepository.findByRoleOrderByIdAsc(Role.COURIER)).thenReturn(List.of(courier));
+
+        List<OperationalCourierResponse> responses = courierService.listOperationalCouriers();
+
+        assertThat(responses).singleElement().satisfies(response -> {
+            assertThat(response.id()).isEqualTo(7L);
+            assertThat(response.email()).isEqualTo("courier@example.com");
+            assertThat(response.displayName()).isEqualTo("Ayse Courier");
+            assertThat(response.phoneNumber()).isEqualTo("+905551112233");
+            assertThat(response.vehicleType()).isEqualTo(CourierVehicleType.MOTORBIKE);
+            assertThat(response.availabilityStatus()).isEqualTo(CourierAvailabilityStatus.AVAILABLE);
+            assertThat(response.latitude()).isEqualByComparingTo("41.008200");
+            assertThat(response.longitude()).isEqualByComparingTo("28.978400");
+        });
+        verify(userRepository).findByRoleOrderByIdAsc(Role.COURIER);
+    }
 
     @Test
     void updateAvailabilityUpdatesOwnedCourierStatus() {

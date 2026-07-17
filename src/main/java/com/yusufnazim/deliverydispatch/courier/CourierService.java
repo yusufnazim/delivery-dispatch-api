@@ -2,6 +2,7 @@ package com.yusufnazim.deliverydispatch.courier;
 
 import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.CourierLocationResponse;
+import com.yusufnazim.deliverydispatch.courier.dto.OperationalCourierResponse;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
@@ -14,6 +15,7 @@ import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,13 @@ public class CourierService {
     private final UserRepository userRepository;
     private final DeliveryOrderRepository deliveryOrderRepository;
     private final DeliveryTimelineService deliveryTimelineService;
+
+    @Transactional(readOnly = true)
+    public List<OperationalCourierResponse> listOperationalCouriers() {
+        return userRepository.findByRoleOrderByIdAsc(Role.COURIER).stream()
+                .map(OperationalCourierResponse::from)
+                .toList();
+    }
 
     @Transactional
     public CourierAvailabilityResponse updateAvailability(
