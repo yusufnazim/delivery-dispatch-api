@@ -63,6 +63,11 @@ public class DispatchService {
     }
 
     @Transactional
+    public DispatchAssignmentResponse manualAssignOrder(Long orderId, Long courierId) {
+        return DispatchAssignmentResponse.from(assignCourierToOrder(orderId, courierId));
+    }
+
+    @Transactional
     public DeliveryOrder assignNearestEligibleCourier(Long orderId) {
         DeliveryOrder order = findPendingOrderForAssignment(orderId);
 

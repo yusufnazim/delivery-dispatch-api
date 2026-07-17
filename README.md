@@ -8,6 +8,7 @@ Spring Boot REST API for customer delivery orders, courier dispatch rules, and d
 - Customer registration, login, order creation, lookup, cancellation, and timeline endpoints.
 - Courier availability, location, pickup, and delivery endpoints.
 - Nearest-courier selection using Haversine distance and stored coordinates.
+- Dispatcher/admin endpoints for automatic and manual courier assignment.
 - Transactional assignment rules that prevent double assignment and limit couriers to one active delivery.
 - PostgreSQL persistence managed by versioned Flyway migrations.
 - Structured validation, authentication, authorization, and domain error responses.

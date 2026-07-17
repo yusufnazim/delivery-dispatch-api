@@ -47,8 +47,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - README local development guide covering prerequisites, Docker and profile startup, demo accounts, configuration, tests, and database operations.
 - Runnable local API walkthrough for customer login, seeded timeline review, order creation, and courier location and availability updates.
 - Dispatcher/admin auto-assignment endpoint that returns the selected courier and delegates to the transactional nearest-courier dispatch service.
+- Dispatcher/admin manual-assignment endpoint with validated courier selection and existing eligibility/conflict rules.
 - Full local delivery walkthrough from order creation through auto-assignment, pickup, delivery, and timeline review.
 
 ## Remaining
 
-- Expose manual courier assignment through a dispatcher/admin endpoint.
+- Add dispatcher/admin operational order listing.
+- Add dispatcher/admin courier listing.

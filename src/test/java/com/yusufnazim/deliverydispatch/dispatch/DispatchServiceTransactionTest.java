@@ -70,17 +70,17 @@ class DispatchServiceTransactionTest {
     }
 
     @Test
-    void assignCourierToOrderRunsInsideWriteTransaction() {
+    void manualAssignOrderRunsInsideWriteTransaction() {
         DeliveryOrder order = order();
         User courier = courierAt("courier@example.com", "41.037200", "28.985300");
         repositoryStubs.orderById = Optional.of(order);
         repositoryStubs.courierByIdAndRole = Optional.of(courier);
 
-        dispatchService.assignCourierToOrder(100L, 7L);
+        dispatchService.manualAssignOrder(100L, 7L);
 
         TransactionBoundary boundary = onlyTransactionBoundary();
         assertThat(AopUtils.isAopProxy(dispatchService)).isTrue();
-        assertThat(boundary.name()).endsWith("DispatchService.assignCourierToOrder");
+        assertThat(boundary.name()).endsWith("DispatchService.manualAssignOrder");
         assertThat(boundary.readOnly()).isFalse();
         assertThat(transactionManager.commits()).isEqualTo(1);
         assertThat(transactionManager.rollbacks()).isZero();

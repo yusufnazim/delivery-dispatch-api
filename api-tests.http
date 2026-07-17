@@ -82,6 +82,15 @@ Content-Type: application/json
 POST {{baseUrl}}/api/v1/dispatch/orders/1/auto-assign
 Authorization: Bearer {{dispatcherToken}}
 
+### Manually assign a courier
+POST {{baseUrl}}/api/v1/dispatch/orders/1/assign
+Authorization: Bearer {{dispatcherToken}}
+Content-Type: application/json
+
+{
+  "courierId": 1
+}
+
 ### Update courier location
 PATCH {{baseUrl}}/api/v1/couriers/me/location
 Authorization: Bearer {{courierToken}}
