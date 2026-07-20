@@ -44,6 +44,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - MVC slice coverage for delivery order and courier request validation, authentication, and role access.
 - Local-profile demo data for every user role, two available couriers with locations, and pending and completed sample orders with timeline history.
 - OpenAPI operation documentation with endpoint summaries, role requirements, response descriptions, and a reusable JWT bearer security scheme.
+- Public Swagger UI and OpenAPI JSON access for reviewing and trying the documented API.
 - README local development guide covering prerequisites, Docker and profile startup, demo accounts, configuration, tests, and database operations.
 - Runnable local API walkthrough for customer login, seeded timeline review, order creation, and courier location and availability updates.
 - Dispatcher/admin auto-assignment endpoint that returns the selected courier and delegates to the transactional nearest-courier dispatch service.
@@ -54,5 +55,4 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
-- Expose and document public Swagger UI access.
 - Complete final portfolio preparation and verification.

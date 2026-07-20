@@ -60,7 +60,7 @@ Flyway applies pending migrations during startup. The local profile also loads i
 curl http://localhost:8080/actuator/health
 ```
 
-The OpenAPI JSON document is available at `http://localhost:8080/v3/api-docs`. Runnable request examples are in [api-tests.http](api-tests.http).
+Swagger UI is available at `http://localhost:8080/swagger-ui/index.html`. The OpenAPI JSON document is available at `http://localhost:8080/v3/api-docs`, and runnable request examples are in [api-tests.http](api-tests.http).
 
 ## Demo Accounts
 
