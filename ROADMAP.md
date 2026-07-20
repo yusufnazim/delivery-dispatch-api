@@ -54,4 +54,5 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
+- Expose and document public Swagger UI access.
 - Complete final portfolio preparation and verification.

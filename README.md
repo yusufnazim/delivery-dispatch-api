@@ -167,7 +167,7 @@ curl -s http://localhost:8080/api/v1/couriers/me/availability \
   -d '{"status":"AVAILABLE"}'
 ```
 
-6. Log in as the seeded dispatcher and auto-assign the nearest eligible courier:
+6. Log in as the seeded dispatcher and inspect the operational courier and order views:
 
 ```bash
 curl -s http://localhost:8080/api/v1/auth/login \
@@ -176,14 +176,29 @@ curl -s http://localhost:8080/api/v1/auth/login \
 
 export DISPATCHER_TOKEN='<dispatcher-jwt>'
 
-curl -s "http://localhost:8080/api/v1/dispatch/orders/$NEW_ORDER_ID/auto-assign" \
-  -X POST \
+curl -s http://localhost:8080/api/v1/dispatch/couriers \
+  -H "Authorization: Bearer $DISPATCHER_TOKEN"
+
+curl -s http://localhost:8080/api/v1/dispatch/orders \
   -H "Authorization: Bearer $DISPATCHER_TOKEN"
 ```
 
-The assignment response identifies the selected courier. With the seeded locations and the location update above, `courier.one@delivery.local` is selected.
+The courier response shows profile, availability, and location data. The order response shows the new pending order alongside its customer, route, and current assignment details.
 
-7. Pick up and deliver the assigned order:
+7. Auto-assign the nearest eligible courier, then inspect the updated order:
+
+```bash
+curl -s "http://localhost:8080/api/v1/dispatch/orders/$NEW_ORDER_ID/auto-assign" \
+  -X POST \
+  -H "Authorization: Bearer $DISPATCHER_TOKEN"
+
+curl -s http://localhost:8080/api/v1/dispatch/orders \
+  -H "Authorization: Bearer $DISPATCHER_TOKEN"
+```
+
+The assignment response identifies the selected courier, and the operational order view now shows the order as `ASSIGNED`. With the seeded locations and the location update above, `courier.one@delivery.local` is selected.
+
+8. Pick up and deliver the assigned order:
 
 ```bash
 curl -s "http://localhost:8080/api/v1/couriers/me/orders/$NEW_ORDER_ID/pickup" \
@@ -195,7 +210,7 @@ curl -s "http://localhost:8080/api/v1/couriers/me/orders/$NEW_ORDER_ID/deliver" 
   -H "Authorization: Bearer $COURIER_TOKEN"
 ```
 
-8. Inspect the completed timeline:
+9. Inspect the completed timeline:
 
 ```bash
 curl -s "http://localhost:8080/api/v1/orders/$NEW_ORDER_ID/timeline" \
