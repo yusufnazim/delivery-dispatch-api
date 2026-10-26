@@ -57,6 +57,39 @@ class CourierServiceTest {
     @InjectMocks
     private CourierService courierService;
 
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = {"ASSIGNED", "PICKED_UP"})
+    void getCurrentOrderMapsTheAuthenticatedCouriersActiveOrder(OrderStatus status) {
+        DeliveryOrder order = assignedOrder(12L);
+        if (status == OrderStatus.PICKED_UP) {
+            order.markPickedUp();
+        }
+        when(deliveryOrderRepository.findByCourierIdAndStatusIn(
+                7L, List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP))).thenReturn(Optional.of(order));
+
+        assertThat(courierService.getCurrentOrder(7L)).contains(new DeliveryOrderResponse(
+                12L, status,
+                "Istiklal Cd. No:1, Beyoglu", new BigDecimal("41.036900"), new BigDecimal("28.985000"),
+                "Bagdat Cd. No:10, Kadikoy", new BigDecimal("40.970000"), new BigDecimal("29.057000"),
+                Instant.parse("2026-06-30T10:00:00Z"), Instant.parse("2026-06-30T10:05:00Z")));
+
+        verify(deliveryOrderRepository).findByCourierIdAndStatusIn(
+                7L, List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP));
+        verifyNoInteractions(userRepository, deliveryTimelineService);
+    }
+
+    @Test
+    void getCurrentOrderReturnsEmptyWhenNoActiveAssignmentExists() {
+        when(deliveryOrderRepository.findByCourierIdAndStatusIn(
+                7L, List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP))).thenReturn(Optional.empty());
+
+        assertThat(courierService.getCurrentOrder(7L)).isEmpty();
+
+        verify(deliveryOrderRepository).findByCourierIdAndStatusIn(
+                7L, List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP));
+        verifyNoInteractions(userRepository, deliveryTimelineService);
+    }
+
     @Test
     void listOperationalCouriersReturnsProfileAvailabilityAndLocation() {
         User courier = new User("courier@example.com", "hashed-password", Role.COURIER);

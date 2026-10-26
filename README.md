@@ -6,7 +6,7 @@ Spring Boot REST API for customer delivery orders, courier dispatch rules, and d
 
 - JWT authentication with `ADMIN`, `DISPATCHER`, `COURIER`, and `CUSTOMER` roles.
 - Customer registration, login, order creation, lookup, cancellation, and timeline endpoints.
-- Courier availability, location, pickup, and delivery endpoints.
+- Courier availability, location, current assignment, pickup, and delivery endpoints.
 - Nearest-courier selection using Haversine distance and stored coordinates.
 - Dispatcher/admin endpoints for automatic and manual courier assignment.
 - Dispatcher/admin operational order listing with customer and courier assignment details.
@@ -198,17 +198,31 @@ curl -s http://localhost:8080/api/v1/dispatch/orders \
 
 The assignment response identifies the selected courier, and the operational order view now shows the order as `ASSIGNED`. With the seeded locations and the location update above, `courier.one@delivery.local` is selected.
 
-8. Pick up and deliver the assigned order:
+8. Discover the current assignment as the courier:
 
 ```bash
-curl -s "http://localhost:8080/api/v1/couriers/me/orders/$NEW_ORDER_ID/pickup" \
+curl -i http://localhost:8080/api/v1/couriers/me/orders/current \
+  -H "Authorization: Bearer $COURIER_TOKEN"
+```
+
+The `200` response contains the order's `id`, status, pickup/dropoff addresses, and coordinates. An idle courier receives `204` with no body. Copy the returned `id`, then pick up and deliver that order:
+
+```bash
+export CURRENT_ORDER_ID='<id-from-current-assignment>'
+
+curl -s "http://localhost:8080/api/v1/couriers/me/orders/$CURRENT_ORDER_ID/pickup" \
   -X POST \
   -H "Authorization: Bearer $COURIER_TOKEN"
 
-curl -s "http://localhost:8080/api/v1/couriers/me/orders/$NEW_ORDER_ID/deliver" \
+curl -s "http://localhost:8080/api/v1/couriers/me/orders/$CURRENT_ORDER_ID/deliver" \
   -X POST \
   -H "Authorization: Bearer $COURIER_TOKEN"
+
+curl -i http://localhost:8080/api/v1/couriers/me/orders/current \
+  -H "Authorization: Bearer $COURIER_TOKEN"
 ```
+
+After delivery, the current-assignment request returns `204` until another order is assigned.
 
 9. Inspect the completed timeline:
 
@@ -226,6 +240,8 @@ Manual and automatic assignment use optimistic versions on both the order and co
 An assignment that loses a concurrent version or active-courier uniqueness check returns `409` with code `ORDER_ASSIGNMENT_CONFLICT`. Its order, courier, and timeline writes roll back together. The API does not retry automatically; inspect the current operational state before retrying.
 
 ## Courier State
+
+`GET /api/v1/couriers/me/orders/current` is restricted to `COURIER` users and derives ownership from the JWT. It returns only that courier's `ASSIGNED` or `PICKED_UP` order (`200`), or an empty `204` when none exists. Completed deliveries are excluded. This read does not change availability, order state, or timeline history.
 
 Couriers can select `AVAILABLE` or `UNAVAILABLE` only when idle. During an `ASSIGNED` or `PICKED_UP` delivery, manual availability changes return `409 COURIER_AVAILABILITY_CHANGE_NOT_ALLOWED`. `ON_DELIVERY` remains system-managed. Successful delivery completion automatically sets the courier to `AVAILABLE`; the courier can then choose `UNAVAILABLE`.
 
@@ -269,6 +285,8 @@ Docker must be available for the PostgreSQL Testcontainers integration tests.
 Dispatch concurrency tests synchronize two real transactions and verify manual/manual, automatic/automatic, mixed assignment, same-order conflicts, rollback, and courier reuse after delivery.
 
 Courier state tests also overlap availability/location writes with assignment and completion, verify both winning and losing transactions, and check persisted state and timeline rollback.
+
+Current-assignment tests cover role access, JWT-derived ownership, persisted active orders, idle results, and completed-history exclusion with Open Session in View disabled.
 
 ## Database Operations
 

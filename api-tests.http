@@ -3,6 +3,7 @@
 @dispatcherToken = replace-with-dispatcher-jwt
 @customerToken = replace-with-customer-jwt
 @courierToken = replace-with-courier-jwt
+@currentOrderId = replace-with-id-from-current-assignment
 
 # Use tokens returned by this API's login endpoint with the current JWT_ISSUER.
 # Invalid issuer/identity claims, signatures, or timestamps return 401 AUTHENTICATION_REQUIRED.
@@ -118,12 +119,18 @@ Content-Type: application/json
   "longitude": 28.978400
 }
 
+### Get the authenticated courier's current assignment
+# 200 with an ASSIGNED/PICKED_UP order and addresses; 204 with no body when idle, including after delivery.
+# Set currentOrderId above to the returned id. Ownership comes from courierToken, not a supplied courier id.
+GET {{baseUrl}}/api/v1/couriers/me/orders/current
+Authorization: Bearer {{courierToken}}
+
 ### Mark assigned courier order as picked up
-POST {{baseUrl}}/api/v1/couriers/me/orders/1/pickup
+POST {{baseUrl}}/api/v1/couriers/me/orders/{{currentOrderId}}/pickup
 Authorization: Bearer {{courierToken}}
 
 ### Mark picked-up courier order as delivered
 # Success sets the courier to AVAILABLE. A concurrent courier/order write may return 409 COURIER_UPDATE_CONFLICT.
 # On conflict, completion and its timeline event roll back; reload current state before retrying.
-POST {{baseUrl}}/api/v1/couriers/me/orders/1/deliver
+POST {{baseUrl}}/api/v1/couriers/me/orders/{{currentOrderId}}/deliver
 Authorization: Bearer {{courierToken}}

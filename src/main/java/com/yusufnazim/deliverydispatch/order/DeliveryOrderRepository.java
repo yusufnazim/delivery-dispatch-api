@@ -12,6 +12,8 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
 
     Optional<DeliveryOrder> findByIdAndCourierId(Long id, Long courierId);
 
+    Optional<DeliveryOrder> findByCourierIdAndStatusIn(Long courierId, Collection<OrderStatus> statuses);
+
     List<DeliveryOrder> findByCustomerIdOrderByCreatedAtDescIdDesc(Long customerId);
 
     @EntityGraph(attributePaths = {"customer", "courier"})

@@ -24,6 +24,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Manual availability changes rejected during assigned or picked-up deliveries; completion still releases the courier to `AVAILABLE`.
 - Optional courier latitude and longitude fields persisted with explicit Flyway schema support.
 - Courier location update endpoint restricted to authenticated couriers.
+- Courier-only current-assignment lookup using JWT identity, returning the active order's addresses, coordinates, and status or an empty 204 when idle.
 - Availability, location, and completion writes translate optimistic version conflicts to `409 COURIER_UPDATE_CONFLICT`, rolling back the full transaction.
 - Reusable Haversine distance calculator for dispatch decisions.
 - Eligible courier lookup for dispatch based on availability and known location.
@@ -49,6 +50,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Flyway V8 upgrade tests for existing data, including non-destructive refusal of duplicate active courier assignments.
 - PostgreSQL-backed integration coverage for invalid delivery status transitions.
 - MVC slice coverage for delivery order and courier request validation, authentication, and role access.
+- Service, MVC, and PostgreSQL coverage for current-assignment ownership, active statuses, completed-history exclusion, and reads without state or timeline changes.
 - Local-profile demo data for every user role, two available couriers with locations, and pending and completed sample orders with timeline history.
 - OpenAPI operation documentation with endpoint summaries, role requirements, response descriptions, and a reusable JWT bearer security scheme.
 - Public Swagger UI and OpenAPI JSON access for reviewing and trying the documented API.
@@ -62,11 +64,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
-The current plan has 11 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
+The current plan has 10 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
 
 ### API Usability
 
-- Let authenticated couriers retrieve their current delivery assignment and addresses.
 - Standardize malformed JSON, enum, path, and query parameter error responses.
 - Return useful field-level validation details without exposing rejected secrets.
 - Add bounded customer order pagination with a stable response contract.

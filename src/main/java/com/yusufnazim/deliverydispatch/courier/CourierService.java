@@ -19,6 +19,7 @@ import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,12 @@ public class CourierService {
     private final UserRepository userRepository;
     private final DeliveryOrderRepository deliveryOrderRepository;
     private final DeliveryTimelineService deliveryTimelineService;
+
+    @Transactional(readOnly = true)
+    public Optional<DeliveryOrderResponse> getCurrentOrder(Long courierId) {
+        return deliveryOrderRepository.findByCourierIdAndStatusIn(courierId, ACTIVE_DELIVERY_STATUSES)
+                .map(DeliveryOrderResponse::from);
+    }
 
     @Transactional(readOnly = true)
     public List<OperationalCourierResponse> listOperationalCouriers() {

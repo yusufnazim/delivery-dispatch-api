@@ -17,9 +17,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/couriers")
 @RequiredArgsConstructor
-@Tag(name = "Courier workflow", description = "Courier availability, location, pickup, and delivery actions")
+@Tag(name = "Courier workflow", description = "Courier availability, location, current assignment, pickup, and delivery actions")
 @SecurityRequirement(name = SECURITY_SCHEME_NAME)
 @ApiResponses({
         @ApiResponse(
@@ -47,6 +49,25 @@ public class CourierController {
     private static final String USER_ID_CLAIM = "userId";
 
     private final CourierService courierService;
+
+    @GetMapping("/me/orders/current")
+    @PreAuthorize("hasRole('COURIER')")
+    @Operation(
+            summary = "Get current delivery assignment",
+            description = "Returns only the authenticated courier's ASSIGNED or PICKED_UP order, including pickup/dropoff "
+                    + "addresses and coordinates. Returns no content when idle, including after delivery completion.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Current delivery assignment",
+                    content = @Content(schema = @Schema(implementation = DeliveryOrderResponse.class))),
+            @ApiResponse(responseCode = "204", description = "No active delivery assignment", content = @Content)
+    })
+    public ResponseEntity<DeliveryOrderResponse> getCurrentOrder(@AuthenticationPrincipal Jwt jwt) {
+        return courierService.getCurrentOrder(userIdFrom(jwt))
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
 
     @PatchMapping("/me/availability")
     @PreAuthorize("hasRole('COURIER')")

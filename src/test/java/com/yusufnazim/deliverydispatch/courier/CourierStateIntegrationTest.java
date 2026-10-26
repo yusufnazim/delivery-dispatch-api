@@ -11,6 +11,7 @@ import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderService;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
+import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentConflictException;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryEvent;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryEventRepository;
@@ -71,6 +72,7 @@ class CourierStateIntegrationTest {
     private final DeliveryOrderRepository orderRepository;
     private final DeliveryEventRepository eventRepository;
 
+    private Long customerId;
     private Long courierId;
     private Long orderId;
 
@@ -95,12 +97,82 @@ class CourierStateIntegrationTest {
         eventRepository.deleteAllInBatch();
         orderRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
-        Long customerId = userRepository.save(new User("state-customer@example.com", "hash", Role.CUSTOMER)).getId();
+        customerId = userRepository.save(new User("state-customer@example.com", "hash", Role.CUSTOMER)).getId();
         User courier = new User("state-courier@example.com", "hash", Role.COURIER);
         courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
         courier.updateCourierLocation(ORIGINAL_LATITUDE, ORIGINAL_LONGITUDE);
         courierId = userRepository.save(courier).getId();
-        orderId = orderService.createOrder(customerId, new CreateDeliveryOrderRequest(
+        orderId = createOrder();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = {"PENDING", "CANCELLED"})
+    void currentOrderIsEmptyForIdleCourierDespiteNonActiveOrders(OrderStatus status) {
+        if (status == OrderStatus.CANCELLED) {
+            orderService.cancelCustomerOrder(customerId, orderId);
+        }
+
+        assertThat(courierService.getCurrentOrder(courierId)).isEmpty();
+        assertThat(order().getStatus()).isEqualTo(status);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = {"ASSIGNED", "PICKED_UP"})
+    void currentOrderReturnsPersistedDeliveryWithoutChangingStateOrTimeline(OrderStatus status) {
+        prepareActiveDelivery(status);
+        DeliveryOrder beforeOrder = order();
+        User beforeCourier = courier();
+        var beforeEvents = eventRepository.findByDeliveryOrderIdOrderByCreatedAtAscIdAsc(orderId);
+
+        DeliveryOrderResponse response = courierService.getCurrentOrder(courierId).orElseThrow();
+
+        assertThat(response).isEqualTo(DeliveryOrderResponse.from(beforeOrder));
+        assertThat(response.status()).isEqualTo(status);
+        assertThat(order().getVersion()).isEqualTo(beforeOrder.getVersion());
+        assertThat(order().getUpdatedAt()).isEqualTo(beforeOrder.getUpdatedAt());
+        assertThat(courier().getVersion()).isEqualTo(beforeCourier.getVersion());
+        assertThat(courier().getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
+        assertThat(eventRepository.findByDeliveryOrderIdOrderByCreatedAtAscIdAsc(orderId))
+                .extracting(DeliveryEvent::getId).containsExactlyElementsOf(
+                        beforeEvents.stream().map(DeliveryEvent::getId).toList());
+    }
+
+    @Test
+    void currentOrderNeverReturnsAnotherCouriersAssignment() {
+        assign(false);
+        User otherCourier = new User("other-state-courier@example.com", "hash", Role.COURIER);
+        otherCourier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+        otherCourier.updateCourierLocation(ORIGINAL_LATITUDE, ORIGINAL_LONGITUDE);
+        Long otherCourierId = userRepository.save(otherCourier).getId();
+
+        assertThat(courierService.getCurrentOrder(otherCourierId)).isEmpty();
+
+        Long otherOrderId = createOrder();
+        dispatchService.manualAssignOrder(otherOrderId, otherCourierId);
+
+        assertThat(courierService.getCurrentOrder(courierId).orElseThrow().id()).isEqualTo(orderId);
+        assertThat(courierService.getCurrentOrder(otherCourierId).orElseThrow().id()).isEqualTo(otherOrderId);
+    }
+
+    @Test
+    void currentOrderExcludesCompletedHistoryWhenCourierIsIdleOrAssignedAgain() {
+        prepareActiveDelivery(OrderStatus.PICKED_UP);
+        courierService.deliverOrder(courierId, orderId);
+
+        assertThat(courierService.getCurrentOrder(courierId)).isEmpty();
+        assertThat(order().getStatus()).isEqualTo(OrderStatus.DELIVERED);
+
+        Long nextOrderId = createOrder();
+        dispatchService.manualAssignOrder(nextOrderId, courierId);
+
+        DeliveryOrderResponse response = courierService.getCurrentOrder(courierId).orElseThrow();
+        assertThat(response.id()).isEqualTo(nextOrderId);
+        assertThat(response.status()).isEqualTo(OrderStatus.ASSIGNED);
+        assertThat(order().getStatus()).isEqualTo(OrderStatus.DELIVERED);
+    }
+
+    private Long createOrder() {
+        return orderService.createOrder(customerId, new CreateDeliveryOrderRequest(
                 "Pickup", new BigDecimal("41.036900"), new BigDecimal("28.985000"),
                 "Dropoff", new BigDecimal("40.970000"), new BigDecimal("29.057000"))).id();
     }

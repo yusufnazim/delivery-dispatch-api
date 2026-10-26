@@ -4,8 +4,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -27,7 +29,10 @@ import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -55,6 +60,67 @@ class CourierControllerTest {
     CourierControllerTest(MockMvc mockMvc, ObjectMapper objectMapper) {
         this.mockMvc = mockMvc;
         this.objectMapper = objectMapper;
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = {"ASSIGNED", "PICKED_UP"})
+    void getCurrentOrderReturnsOnlyTheDeliveryResponseForCourier(OrderStatus orderStatus) throws Exception {
+        DeliveryOrderResponse response = orderResponse(12L, orderStatus);
+        when(courierService.getCurrentOrder(7L)).thenReturn(Optional.of(response));
+
+        mockMvc.perform(get("/api/v1/couriers/me/orders/current")
+                        .with(authenticatedAs(7L, Role.COURIER)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(objectMapper.writeValueAsString(response)))
+                .andExpect(jsonPath("$.customer").doesNotExist())
+                .andExpect(jsonPath("$.courier").doesNotExist())
+                .andExpect(jsonPath("$.password").doesNotExist());
+
+        verify(courierService).getCurrentOrder(7L);
+    }
+
+    @Test
+    void getCurrentOrderReturnsNoContentWhenIdle() throws Exception {
+        when(courierService.getCurrentOrder(7L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/couriers/me/orders/current")
+                        .with(authenticatedAs(7L, Role.COURIER)))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(courierService).getCurrentOrder(7L);
+    }
+
+    @Test
+    void getCurrentOrderUsesTokenIdentityDespiteSuppliedCourierId() throws Exception {
+        when(courierService.getCurrentOrder(7L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/couriers/me/orders/current")
+                        .param("courierId", "8")
+                        .with(authenticatedAs(7L, Role.COURIER)))
+                .andExpect(status().isNoContent());
+
+        verify(courierService).getCurrentOrder(7L);
+    }
+
+    @Test
+    void getCurrentOrderRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/couriers/me/orders/current"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        verifyNoInteractions(courierService);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Role.class, names = {"CUSTOMER", "DISPATCHER", "ADMIN"})
+    void getCurrentOrderRejectsNonCourierRoles(Role role) throws Exception {
+        mockMvc.perform(get("/api/v1/couriers/me/orders/current")
+                        .with(authenticatedAs(7L, role)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        verifyNoInteractions(courierService);
     }
 
     @Test
