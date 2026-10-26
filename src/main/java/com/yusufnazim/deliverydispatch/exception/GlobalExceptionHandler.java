@@ -3,7 +3,9 @@ package com.yusufnazim.deliverydispatch.exception;
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
+import com.yusufnazim.deliverydispatch.courier.exception.CourierAvailabilityChangeNotAllowedException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
+import com.yusufnazim.deliverydispatch.courier.exception.CourierUpdateConflictException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierAlreadyHasActiveDeliveryException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
@@ -106,6 +108,19 @@ public class GlobalExceptionHandler {
 	public ApiErrorResponse handleInvalidCourierAvailabilityStatus(
 			InvalidCourierAvailabilityStatusException exception) {
 		return new ApiErrorResponse("INVALID_COURIER_AVAILABILITY_STATUS", exception.getMessage());
+	}
+
+	@ExceptionHandler(CourierAvailabilityChangeNotAllowedException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ApiErrorResponse handleCourierAvailabilityChangeNotAllowed(
+			CourierAvailabilityChangeNotAllowedException exception) {
+		return new ApiErrorResponse("COURIER_AVAILABILITY_CHANGE_NOT_ALLOWED", exception.getMessage());
+	}
+
+	@ExceptionHandler(CourierUpdateConflictException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ApiErrorResponse handleCourierUpdateConflict(CourierUpdateConflictException exception) {
+		return new ApiErrorResponse("COURIER_UPDATE_CONFLICT", exception.getMessage());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

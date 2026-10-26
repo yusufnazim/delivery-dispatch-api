@@ -70,6 +70,8 @@ DELETE {{baseUrl}}/api/v1/orders/1
 Authorization: Bearer {{customerToken}}
 
 ### Update courier availability
+# Idle couriers only. Active deliveries return 409 COURIER_AVAILABILITY_CHANGE_NOT_ALLOWED.
+# A stale concurrent write returns 409 COURIER_UPDATE_CONFLICT; reload state before retrying.
 PATCH {{baseUrl}}/api/v1/couriers/me/availability
 Authorization: Bearer {{courierToken}}
 Content-Type: application/json
@@ -102,6 +104,7 @@ Content-Type: application/json
 }
 
 ### Update courier location
+# Allowed during delivery without changing availability. Stale writes return 409 COURIER_UPDATE_CONFLICT.
 PATCH {{baseUrl}}/api/v1/couriers/me/location
 Authorization: Bearer {{courierToken}}
 Content-Type: application/json
@@ -116,5 +119,7 @@ POST {{baseUrl}}/api/v1/couriers/me/orders/1/pickup
 Authorization: Bearer {{courierToken}}
 
 ### Mark picked-up courier order as delivered
+# Success sets the courier to AVAILABLE. A concurrent courier/order write may return 409 COURIER_UPDATE_CONFLICT.
+# On conflict, completion and its timeline event roll back; reload current state before retrying.
 POST {{baseUrl}}/api/v1/couriers/me/orders/1/deliver
 Authorization: Bearer {{courierToken}}

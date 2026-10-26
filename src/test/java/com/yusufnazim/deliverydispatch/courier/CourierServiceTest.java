@@ -2,13 +2,18 @@ package com.yusufnazim.deliverydispatch.courier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.CourierLocationResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.OperationalCourierResponse;
+import com.yusufnazim.deliverydispatch.courier.exception.CourierAvailabilityChangeNotAllowedException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
+import com.yusufnazim.deliverydispatch.courier.exception.CourierUpdateConflictException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
@@ -28,9 +33,13 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -100,6 +109,66 @@ class CourierServiceTest {
         assertThatThrownBy(() -> courierService.updateAvailability(7L, CourierAvailabilityStatus.ON_DELIVERY))
                 .isInstanceOf(InvalidCourierAvailabilityStatusException.class)
                 .hasMessage("Courier availability status cannot be self-managed: ON_DELIVERY");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = CourierAvailabilityStatus.class, names = {"AVAILABLE", "UNAVAILABLE"})
+    void updateAvailabilityRejectsLeavingSystemManagedDeliveryStatus(CourierAvailabilityStatus requested) {
+        User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
+        courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.ON_DELIVERY);
+        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+
+        assertThatThrownBy(() -> courierService.updateAvailability(7L, requested))
+                .isInstanceOf(CourierAvailabilityChangeNotAllowedException.class);
+
+        assertThat(courier.getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
+        verifyNoInteractions(deliveryTimelineService);
+    }
+
+    @Test
+    void updateAvailabilityRejectsActiveOrderEvenIfStoredAvailabilityIsInconsistent() {
+        User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
+        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+        when(deliveryOrderRepository.existsByCourierIdAndStatusIn(
+                7L, List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP))).thenReturn(true);
+
+        assertThatThrownBy(() -> courierService.updateAvailability(7L, CourierAvailabilityStatus.AVAILABLE))
+                .isInstanceOf(CourierAvailabilityChangeNotAllowedException.class);
+
+        assertThat(courier.getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.UNAVAILABLE);
+    }
+
+    @Test
+    void updateAvailabilityTranslatesStaleCourierVersion() {
+        User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
+        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+        var failure = new ObjectOptimisticLockingFailureException(User.class, 7L);
+        doThrow(failure).when(userRepository).flush();
+
+        assertThatThrownBy(() -> courierService.updateAvailability(7L, CourierAvailabilityStatus.AVAILABLE))
+                .isInstanceOf(CourierUpdateConflictException.class).hasCause(failure);
+    }
+
+    @Test
+    void updateLocationTranslatesStaleCourierVersion() {
+        User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
+        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+        var failure = new ObjectOptimisticLockingFailureException(User.class, 7L);
+        doThrow(failure).when(userRepository).flush();
+
+        assertThatThrownBy(() -> courierService.updateLocation(7L, BigDecimal.ONE, BigDecimal.TEN))
+                .isInstanceOf(CourierUpdateConflictException.class).hasCause(failure);
+    }
+
+    @Test
+    void updateLocationDoesNotDisguiseUnrelatedDatabaseFailureAsConflict() {
+        User courier = new User("courier@example.com", "hashed-password", Role.COURIER);
+        when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+        var failure = new DataIntegrityViolationException("unrelated constraint");
+        doThrow(failure).when(userRepository).flush();
+
+        assertThatThrownBy(() -> courierService.updateLocation(7L, BigDecimal.ONE, BigDecimal.TEN))
+                .isSameAs(failure);
     }
 
     @Test
@@ -175,7 +244,25 @@ class CourierServiceTest {
         assertThat(order.getCourier().getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.AVAILABLE);
         assertThat(response.id()).isEqualTo(11L);
         assertThat(response.status()).isEqualTo(OrderStatus.DELIVERED);
-        verify(deliveryTimelineService).recordOrderDelivered(order);
+        var writes = inOrder(userRepository, deliveryTimelineService);
+        writes.verify(userRepository).flush();
+        writes.verify(deliveryTimelineService).recordOrderDelivered(order);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ConflictEntity.class)
+    void deliverOrderTranslatesVersionConflictBeforeRecordingEvent(ConflictEntity entity) {
+        DeliveryOrder order = assignedOrder(11L);
+        order.markPickedUp();
+        when(deliveryOrderRepository.findByIdAndCourierId(11L, 7L)).thenReturn(Optional.of(order));
+        var failure = new ObjectOptimisticLockingFailureException(
+                entity == ConflictEntity.COURIER ? User.class : DeliveryOrder.class, 7L);
+        doThrow(failure).when(userRepository).flush();
+
+        assertThatThrownBy(() -> courierService.deliverOrder(7L, 11L))
+                .isInstanceOf(CourierUpdateConflictException.class).hasCause(failure);
+
+        verifyNoInteractions(deliveryTimelineService);
     }
 
     @Test
@@ -197,6 +284,8 @@ class CourierServiceTest {
                 .hasMessage("Order cannot transition from ASSIGNED to DELIVERED");
         assertThat(order.getCourier().getCourierAvailabilityStatus()).isEqualTo(CourierAvailabilityStatus.ON_DELIVERY);
     }
+
+    private enum ConflictEntity { COURIER, ORDER }
 
     private DeliveryOrder assignedOrder(Long orderId) {
         User customer = new User("customer@example.com", "hashed-password", Role.CUSTOMER);

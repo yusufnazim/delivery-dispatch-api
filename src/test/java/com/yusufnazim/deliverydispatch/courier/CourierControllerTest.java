@@ -15,6 +15,8 @@ import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.CourierLocationResponse;
 import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierAvailabilityRequest;
 import com.yusufnazim.deliverydispatch.courier.dto.UpdateCourierLocationRequest;
+import com.yusufnazim.deliverydispatch.courier.exception.CourierAvailabilityChangeNotAllowedException;
+import com.yusufnazim.deliverydispatch.courier.exception.CourierUpdateConflictException;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.exception.InvalidOrderStatusTransitionException;
@@ -86,6 +88,60 @@ class CourierControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
 
         verifyNoInteractions(courierService);
+    }
+
+    @Test
+    void updateAvailabilityReturnsConflictDuringActiveDelivery() throws Exception {
+        when(courierService.updateAvailability(7L, CourierAvailabilityStatus.UNAVAILABLE))
+                .thenThrow(new CourierAvailabilityChangeNotAllowedException(7L));
+
+        mockMvc.perform(patch("/api/v1/couriers/me/availability")
+                        .with(authenticatedAs(7L, Role.COURIER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"UNAVAILABLE\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COURIER_AVAILABILITY_CHANGE_NOT_ALLOWED"))
+                .andExpect(jsonPath("$.message").value(
+                        "Courier availability cannot change during an active delivery: 7"));
+    }
+
+    @Test
+    void updateAvailabilityReturnsConflictForConcurrentWrite() throws Exception {
+        when(courierService.updateAvailability(7L, CourierAvailabilityStatus.AVAILABLE))
+                .thenThrow(new CourierUpdateConflictException(7L, new RuntimeException("internal database details")));
+
+        mockMvc.perform(patch("/api/v1/couriers/me/availability")
+                        .with(authenticatedAs(7L, Role.COURIER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"AVAILABLE\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COURIER_UPDATE_CONFLICT"))
+                .andExpect(jsonPath("$.message").value(
+                        "Courier or delivery state changed concurrently; reload before retrying: 7"))
+                .andExpect(jsonPath("$.cause").doesNotExist());
+    }
+
+    @Test
+    void updateLocationReturnsConflictForConcurrentWrite() throws Exception {
+        when(courierService.updateLocation(7L, BigDecimal.ONE, BigDecimal.TEN))
+                .thenThrow(new CourierUpdateConflictException(7L, null));
+
+        mockMvc.perform(patch("/api/v1/couriers/me/location")
+                        .with(authenticatedAs(7L, Role.COURIER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"latitude\":1,\"longitude\":10}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COURIER_UPDATE_CONFLICT"));
+    }
+
+    @Test
+    void deliverOrderReturnsConflictForConcurrentWrite() throws Exception {
+        when(courierService.deliverOrder(7L, 11L)).thenThrow(new CourierUpdateConflictException(7L, null));
+
+        mockMvc.perform(post("/api/v1/couriers/me/orders/11/deliver")
+                        .with(authenticatedAs(7L, Role.COURIER)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COURIER_UPDATE_CONFLICT"));
     }
 
     @Test

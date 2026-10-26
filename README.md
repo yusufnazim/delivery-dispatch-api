@@ -225,6 +225,12 @@ Manual and automatic assignment use optimistic versions on both the order and co
 
 An assignment that loses a concurrent version or active-courier uniqueness check returns `409` with code `ORDER_ASSIGNMENT_CONFLICT`. Its order, courier, and timeline writes roll back together. The API does not retry automatically; inspect the current operational state before retrying.
 
+## Courier State
+
+Couriers can select `AVAILABLE` or `UNAVAILABLE` only when idle. During an `ASSIGNED` or `PICKED_UP` delivery, manual availability changes return `409 COURIER_AVAILABILITY_CHANGE_NOT_ALLOWED`. `ON_DELIVERY` remains system-managed. Successful delivery completion automatically sets the courier to `AVAILABLE`; the courier can then choose `UNAVAILABLE`.
+
+Location updates are allowed during delivery and do not change availability. Availability, location, and completion writes use the existing optimistic versions. A stale write returns `409 COURIER_UPDATE_CONFLICT`, with the entire transaction rolled back, including any completion and timeline changes. No automatic retry occurs; reload current state before retrying. Dispatcher/admin operational views expose the current order and courier state.
+
 ## Configuration
 
 | Variable | Purpose | Default |
@@ -261,6 +267,8 @@ Run the full Maven verification lifecycle and build the application jar:
 Docker must be available for the PostgreSQL Testcontainers integration tests.
 
 Dispatch concurrency tests synchronize two real transactions and verify manual/manual, automatic/automatic, mixed assignment, same-order conflicts, rollback, and courier reuse after delivery.
+
+Courier state tests also overlap availability/location writes with assignment and completion, verify both winning and losing transactions, and check persisted state and timeline rollback.
 
 ## Database Operations
 

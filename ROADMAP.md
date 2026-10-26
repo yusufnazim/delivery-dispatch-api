@@ -19,8 +19,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Courier profile fields persisted on user accounts with explicit Flyway schema support.
 - Courier availability status persisted with default `UNAVAILABLE` state for courier users.
 - Courier availability update endpoint restricted to authenticated couriers.
+- Manual availability changes rejected during assigned or picked-up deliveries; completion still releases the courier to `AVAILABLE`.
 - Optional courier latitude and longitude fields persisted with explicit Flyway schema support.
 - Courier location update endpoint restricted to authenticated couriers.
+- Availability, location, and completion writes translate optimistic version conflicts to `409 COURIER_UPDATE_CONFLICT`, rolling back the full transaction.
 - Reusable Haversine distance calculator for dispatch decisions.
 - Eligible courier lookup for dispatch based on availability and known location.
 - Nearest eligible courier selection using pickup coordinates and Haversine distance.
@@ -41,6 +43,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - PostgreSQL-backed integration coverage for manual assignment conflict behavior.
 - PostgreSQL-backed coverage for sequential double-assignment rejection and stale same-order version conflicts.
 - Deterministic two-transaction PostgreSQL tests for manual/manual, auto/auto, mixed assignment, same-order competition, loser rollback, and courier reuse after completion.
+- PostgreSQL regression and coordinated race tests for active-delivery availability guards, courier updates versus assignment/completion, and state/timeline rollback.
 - Flyway V8 upgrade tests for existing data, including non-destructive refusal of duplicate active courier assignments.
 - PostgreSQL-backed integration coverage for invalid delivery status transitions.
 - MVC slice coverage for delivery order and courier request validation, authentication, and role access.
@@ -57,11 +60,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
-The current plan has 13 remaining focused commits across correctness, API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
+The current plan has 12 remaining focused commits across correctness, API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
 
 ### Correctness And Security
 
-- Preserve system-managed courier availability during active deliveries, including overlapping location/state updates.
 - Enforce JWT issuer and required identity-claim validation, with negative authentication tests.
 
 ### API Usability

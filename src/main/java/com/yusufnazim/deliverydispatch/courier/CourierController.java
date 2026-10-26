@@ -52,9 +52,15 @@ public class CourierController {
     @PreAuthorize("hasRole('COURIER')")
     @Operation(
             summary = "Update courier availability",
-            description = "Sets the authenticated courier to AVAILABLE or UNAVAILABLE. ON_DELIVERY is managed by the system.")
+            description = "Sets an idle courier to AVAILABLE or UNAVAILABLE. Changes are rejected during an active delivery. "
+                    + "ON_DELIVERY is system-managed; completion releases the courier to AVAILABLE.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Courier availability updated"),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "COURIER_AVAILABILITY_CHANGE_NOT_ALLOWED during delivery, or COURIER_UPDATE_CONFLICT "
+                            + "after a concurrent write. Reload current state before retrying.",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "400",
                     description = "Availability value is missing or cannot be set manually",
@@ -77,6 +83,10 @@ public class CourierController {
             description = "Stores the authenticated courier's current latitude and longitude for dispatch decisions.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Courier location updated"),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "COURIER_UPDATE_CONFLICT after a concurrent write. Reload current state before retrying.",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "400",
                     description = "Latitude or longitude validation failed",
@@ -127,7 +137,8 @@ public class CourierController {
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "409",
-                    description = "Order cannot transition to DELIVERED from its current status",
+                    description = "INVALID_ORDER_STATUS_TRANSITION if the order is not picked up, or COURIER_UPDATE_CONFLICT "
+                            + "after a concurrent courier/order write. No completion changes persist; reload before retrying.",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
     public DeliveryOrderResponse deliverOrder(

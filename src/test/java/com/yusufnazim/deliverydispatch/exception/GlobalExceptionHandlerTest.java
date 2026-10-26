@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
+import com.yusufnazim.deliverydispatch.courier.exception.CourierAvailabilityChangeNotAllowedException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
+import com.yusufnazim.deliverydispatch.courier.exception.CourierUpdateConflictException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierAlreadyHasActiveDeliveryException;
 import com.yusufnazim.deliverydispatch.dispatch.exception.CourierNotEligibleForDispatchException;
@@ -125,7 +127,17 @@ class GlobalExceptionHandlerTest {
                                 InvalidCourierAvailabilityStatusException.class),
                         new InvalidCourierAvailabilityStatusException(CourierAvailabilityStatus.ON_DELIVERY),
                         "INVALID_COURIER_AVAILABILITY_STATUS",
-                        HttpStatus.BAD_REQUEST)
+                        HttpStatus.BAD_REQUEST),
+                new DomainErrorCase(
+                        method("handleCourierAvailabilityChangeNotAllowed", CourierAvailabilityChangeNotAllowedException.class),
+                        new CourierAvailabilityChangeNotAllowedException(9L),
+                        "COURIER_AVAILABILITY_CHANGE_NOT_ALLOWED",
+                        HttpStatus.CONFLICT),
+                new DomainErrorCase(
+                        method("handleCourierUpdateConflict", CourierUpdateConflictException.class),
+                        new CourierUpdateConflictException(9L, null),
+                        "COURIER_UPDATE_CONFLICT",
+                        HttpStatus.CONFLICT)
         );
     }
 
