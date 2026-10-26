@@ -1,6 +1,7 @@
 package com.yusufnazim.deliverydispatch.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -169,6 +171,24 @@ class UserRepositoryTest {
         assertThat(foundCustomer.getCourierAvailabilityStatus()).isNull();
         assertThat(foundCustomer.getCourierLatitude()).isNull();
         assertThat(foundCustomer.getCourierLongitude()).isNull();
+    }
+
+    @Test
+    void staleCourierUpdateCannotOverwriteNewerAvailability() {
+        User courier = new User("stale-courier@example.com", "hash", Role.COURIER);
+        courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+        Long courierId = userRepository.saveAndFlush(courier).getId();
+        entityManager.clear();
+        User staleCourier = userRepository.findById(courierId).orElseThrow();
+        int updatedRows = entityManager.getEntityManager().createNativeQuery("""
+                update users
+                set courier_availability_status = 'ON_DELIVERY', version = version + 1
+                where id = ?
+                """).setParameter(1, courierId).executeUpdate();
+        staleCourier.updateCourierLocation(new BigDecimal("41.037000"), new BigDecimal("28.986000"));
+
+        assertThat(updatedRows).isEqualTo(1);
+        assertThatThrownBy(userRepository::flush).isInstanceOf(ObjectOptimisticLockingFailureException.class);
     }
 
     private DeliveryOrder orderFor(User customer) {

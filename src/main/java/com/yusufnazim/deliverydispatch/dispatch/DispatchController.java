@@ -68,7 +68,7 @@ public class DispatchController {
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "409",
-                    description = "Order cannot be assigned, no courier is eligible, or an assignment conflict occurred",
+                    description = "Order cannot be assigned, no courier is eligible, or a concurrent order/courier update conflicted",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
     public DispatchAssignmentResponse autoAssignOrder(@PathVariable Long orderId) {
@@ -92,7 +92,7 @@ public class DispatchController {
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "409",
-                    description = "Order cannot be assigned, courier is ineligible, or an assignment conflict occurred",
+                    description = "Order cannot be assigned, courier is ineligible, or a concurrent order/courier update conflicted",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
     })
     public DispatchAssignmentResponse manuallyAssignOrder(

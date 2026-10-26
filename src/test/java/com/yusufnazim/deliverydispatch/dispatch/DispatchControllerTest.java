@@ -18,6 +18,7 @@ import com.yusufnazim.deliverydispatch.exception.GlobalExceptionHandler;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderService;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import com.yusufnazim.deliverydispatch.order.dto.OperationalOrderResponse;
+import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentConflictException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.security.SecurityErrorHandler;
 import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
@@ -274,6 +275,28 @@ class DispatchControllerTest {
                         .content("{\"courierId\":7}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("COURIER_NOT_ELIGIBLE_FOR_DISPATCH"));
+    }
+
+    @Test
+    void autoAssignReturnsConflictWhenConcurrentAssignmentWins() throws Exception {
+        when(dispatchService.autoAssignOrder(11L)).thenThrow(new OrderAssignmentConflictException(11L));
+
+        mockMvc.perform(post("/api/v1/dispatch/orders/11/auto-assign")
+                        .with(authenticatedAs(Role.DISPATCHER)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ORDER_ASSIGNMENT_CONFLICT"));
+    }
+
+    @Test
+    void manualAssignReturnsConflictWhenConcurrentAssignmentWins() throws Exception {
+        when(dispatchService.manualAssignOrder(11L, 7L)).thenThrow(new OrderAssignmentConflictException(11L));
+
+        mockMvc.perform(post("/api/v1/dispatch/orders/11/assign")
+                        .with(authenticatedAs(Role.DISPATCHER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"courierId\":7}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ORDER_ASSIGNMENT_CONFLICT"));
     }
 
     private RequestPostProcessor authenticatedAs(Role role) {

@@ -26,10 +26,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Nearest eligible courier selection using pickup coordinates and Haversine distance.
 - Auto-dispatch service assignment that attaches the nearest eligible courier to a pending order.
 - Manual dispatch service assignment for assigning a specific available courier to a pending order.
-- One-active-delivery enforcement for courier assignment.
+- One-active-delivery enforcement under concurrent manual and automatic assignment, backed by a partial unique PostgreSQL index.
 - Double-assignment prevention for orders that are already assigned.
 - Transaction coverage for auto-dispatch and manual courier assignment.
-- Optimistic locking conflict handling for courier assignment races.
+- Order and user optimistic versioning, with assignment version/active-courier uniqueness conflicts translated to HTTP 409 and full transaction rollback.
 - Explicit delivery status transition rules for assignment, pickup, delivery, cancellation, and terminal states.
 - Courier pickup action that lets the assigned courier move an order from assigned to picked up.
 - Courier delivery completion action that marks picked-up orders as delivered and makes the courier available again.
@@ -39,7 +39,9 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - PostgreSQL-backed integration coverage for the customer delivery workflow from order creation through delivery.
 - PostgreSQL-backed integration coverage for no-courier auto-dispatch failure behavior.
 - PostgreSQL-backed integration coverage for manual assignment conflict behavior.
-- PostgreSQL-backed integration coverage for double-assignment prevention behavior.
+- PostgreSQL-backed coverage for sequential double-assignment rejection and stale same-order version conflicts.
+- Deterministic two-transaction PostgreSQL tests for manual/manual, auto/auto, mixed assignment, same-order competition, loser rollback, and courier reuse after completion.
+- Flyway V8 upgrade tests for existing data, including non-destructive refusal of duplicate active courier assignments.
 - PostgreSQL-backed integration coverage for invalid delivery status transitions.
 - MVC slice coverage for delivery order and courier request validation, authentication, and role access.
 - Local-profile demo data for every user role, two available couriers with locations, and pending and completed sample orders with timeline history.
@@ -55,4 +57,31 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
-- Complete final portfolio preparation and verification.
+The current plan has 13 remaining focused commits across correctness, API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
+
+### Correctness And Security
+
+- Preserve system-managed courier availability during active deliveries, including overlapping location/state updates.
+- Enforce JWT issuer and required identity-claim validation, with negative authentication tests.
+
+### API Usability
+
+- Let authenticated couriers retrieve their current delivery assignment and addresses.
+- Standardize malformed JSON, enum, path, and query parameter error responses.
+- Return useful field-level validation details without exposing rejected secrets.
+- Add bounded customer order pagination with a stable response contract.
+- Add bounded dispatcher/admin order pagination and status filtering while preserving N+1-safe fetching.
+- Add bounded dispatcher/admin courier pagination and availability filtering.
+
+### Verification And CI
+
+- Exercise real login, JWT-authenticated requests, assignment, courier actions, and persisted timeline in a full application PostgreSQL workflow test.
+- Require database-backed tests in full verification and CI; fail rather than silently skip when Docker is unavailable.
+
+### Portfolio Preparation
+
+- Document the implemented architecture, schema relationships, transaction/concurrency guarantees, and deliberate v1 tradeoffs.
+- Prepare a technical project walkthrough and evidence-based achievements for interviews and resume use.
+- Finish the clean-start demo, code/documentation consistency checks, Git-history review, and final verification. Keep API examples current as each behavior changes.
+
+Redis, queues, microservices, external routing, and cloud deployment remain future scope, not prerequisites for this v1.

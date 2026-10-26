@@ -79,6 +79,7 @@ Content-Type: application/json
 }
 
 ### Auto-assign nearest eligible courier
+# A concurrent order/courier write can return 409 ORDER_ASSIGNMENT_CONFLICT; inspect current state before retrying.
 POST {{baseUrl}}/api/v1/dispatch/orders/1/auto-assign
 Authorization: Bearer {{dispatcherToken}}
 
@@ -91,6 +92,7 @@ GET {{baseUrl}}/api/v1/dispatch/couriers
 Authorization: Bearer {{dispatcherToken}}
 
 ### Manually assign a courier
+# Different pending orders cannot claim the same courier concurrently; the losing assignment rolls back.
 POST {{baseUrl}}/api/v1/dispatch/orders/1/assign
 Authorization: Bearer {{dispatcherToken}}
 Content-Type: application/json

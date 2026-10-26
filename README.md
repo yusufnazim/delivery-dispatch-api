@@ -11,7 +11,7 @@ Spring Boot REST API for customer delivery orders, courier dispatch rules, and d
 - Dispatcher/admin endpoints for automatic and manual courier assignment.
 - Dispatcher/admin operational order listing with customer and courier assignment details.
 - Dispatcher/admin courier listing with profile, availability, and stored location details.
-- Transactional assignment rules that prevent double assignment and limit couriers to one active delivery.
+- Optimistic versioning and a PostgreSQL unique index that prevent concurrent double assignment of orders or couriers.
 - PostgreSQL persistence managed by versioned Flyway migrations.
 - Structured validation, authentication, authorization, and domain error responses.
 - PostgreSQL-backed integration tests using Testcontainers.
@@ -219,6 +219,12 @@ curl -s "http://localhost:8080/api/v1/orders/$NEW_ORDER_ID/timeline" \
 
 The new order now has the complete created, assigned, picked-up, and delivered event sequence.
 
+## Assignment Conflicts
+
+Manual and automatic assignment use optimistic versions on both the order and courier's user record. A partial unique index also limits each courier to one `ASSIGNED` or `PICKED_UP` order; completed deliveries do not occupy that slot.
+
+An assignment that loses a concurrent version or active-courier uniqueness check returns `409` with code `ORDER_ASSIGNMENT_CONFLICT`. Its order, courier, and timeline writes roll back together. The API does not retry automatically; inspect the current operational state before retrying.
+
 ## Configuration
 
 | Variable | Purpose | Default |
@@ -254,6 +260,8 @@ Run the full Maven verification lifecycle and build the application jar:
 
 Docker must be available for the PostgreSQL Testcontainers integration tests.
 
+Dispatch concurrency tests synchronize two real transactions and verify manual/manual, automatic/automatic, mixed assignment, same-order conflicts, rollback, and courier reuse after delivery.
+
 ## Database Operations
 
 Check the PostgreSQL container:
@@ -275,6 +283,8 @@ docker compose down -v
 ```
 
 Flyway migrations are stored in `src/main/resources/db/migration`. Hibernate validates the mapped schema and does not update it automatically.
+
+Migration V8 adds user versioning and the unique active-courier index. If an existing database already contains multiple active orders for one courier, the migration fails without deleting or rewriting those records. Reconcile the conflicting assignments explicitly before retrying startup.
 
 ## Authentication
 

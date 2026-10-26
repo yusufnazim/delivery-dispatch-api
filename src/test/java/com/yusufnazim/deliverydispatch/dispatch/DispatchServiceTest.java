@@ -23,13 +23,18 @@ import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 @ExtendWith(MockitoExtension.class)
@@ -286,6 +291,76 @@ class DispatchServiceTest {
         assertThatThrownBy(() -> dispatchService.assignCourierToOrder(100L, 7L))
                 .isInstanceOf(OrderAssignmentConflictException.class)
                 .hasMessage("Order assignment conflict for order: 100");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void assignmentConvertsCourierVersionFailureToConflict(boolean automatic) {
+        stubPendingAssignment(automatic);
+        ObjectOptimisticLockingFailureException failure =
+                new ObjectOptimisticLockingFailureException(User.class, 7L);
+        doThrow(failure).when(deliveryOrderRepository).flush();
+
+        assertThatThrownBy(() -> assign(automatic))
+                .isInstanceOf(OrderAssignmentConflictException.class)
+                .hasCause(failure);
+        verifyNoInteractions(deliveryTimelineService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void assignmentConvertsActiveCourierConstraintViolationToConflict(boolean automatic) {
+        stubPendingAssignment(automatic);
+        DataIntegrityViolationException failure = new DataIntegrityViolationException("duplicate active courier",
+                new ConstraintViolationException("duplicate active courier",
+                        new SQLException("duplicate active courier", "23505"),
+                        "uk_delivery_orders_active_courier"));
+        doThrow(failure).when(deliveryOrderRepository).flush();
+
+        assertThatThrownBy(() -> assign(automatic))
+                .isInstanceOf(OrderAssignmentConflictException.class)
+                .hasCause(failure);
+        verifyNoInteractions(deliveryTimelineService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"fk_delivery_orders_customer", "uk_users_email"})
+    void assignmentDoesNotDisguiseUnrelatedConstraintViolations(String constraintName) {
+        stubPendingAssignment(false);
+        DataIntegrityViolationException failure = new DataIntegrityViolationException("unrelated constraint",
+                new ConstraintViolationException("unrelated constraint",
+                        new SQLException("unrelated constraint"), constraintName));
+        doThrow(failure).when(deliveryOrderRepository).flush();
+
+        assertThatThrownBy(() -> assign(false)).isSameAs(failure);
+        verifyNoInteractions(deliveryTimelineService);
+    }
+
+    @Test
+    void assignmentDoesNotDisguiseUnclassifiedIntegrityFailures() {
+        stubPendingAssignment(false);
+        DataIntegrityViolationException failure = new DataIntegrityViolationException("unknown failure");
+        doThrow(failure).when(deliveryOrderRepository).flush();
+
+        assertThatThrownBy(() -> assign(false)).isSameAs(failure);
+        verifyNoInteractions(deliveryTimelineService);
+    }
+
+    private void stubPendingAssignment(boolean automatic) {
+        when(deliveryOrderRepository.findById(100L)).thenReturn(Optional.of(order()));
+        User courier = courierAt("courier@example.com", "41.037200", "28.985300");
+        if (automatic) {
+            when(userRepository.findEligibleCouriersForDispatch(Role.COURIER,
+                    CourierAvailabilityStatus.AVAILABLE, List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP)))
+                    .thenReturn(List.of(courier));
+        } else {
+            when(userRepository.findByIdAndRole(7L, Role.COURIER)).thenReturn(Optional.of(courier));
+        }
+    }
+
+    private DeliveryOrder assign(boolean automatic) {
+        return automatic ? dispatchService.assignNearestEligibleCourier(100L)
+                : dispatchService.assignCourierToOrder(100L, 7L);
     }
 
     private static User courierAt(String email, String latitude, String longitude) {

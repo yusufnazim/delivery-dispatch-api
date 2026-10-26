@@ -10,10 +10,13 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.hibernate.Hibernate;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -185,6 +188,46 @@ class DeliveryOrderRepositoryTest {
         assertThat(updatedRows).isEqualTo(1);
         assertThatThrownBy(deliveryOrderRepository::flush)
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = OrderStatus.class, names = {"ASSIGNED", "PICKED_UP"})
+    void databaseRejectsSecondActiveOrderForCourier(OrderStatus existingStatus) {
+        User customer = userRepository.save(new User("constraint-customer@example.com", "hash", Role.CUSTOMER));
+        User courier = userRepository.save(new User("constraint-courier@example.com", "hash", Role.COURIER));
+        DeliveryOrder first = orderFor(customer, "First pickup");
+        first.assignCourier(courier);
+        if (existingStatus == OrderStatus.PICKED_UP) {
+            first.markPickedUp();
+        }
+        deliveryOrderRepository.saveAndFlush(first);
+        DeliveryOrder second = orderFor(customer, "Second pickup");
+        second.assignCourier(courier);
+
+        assertThatThrownBy(() -> deliveryOrderRepository.saveAndFlush(second))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("uk_delivery_orders_active_courier");
+    }
+
+    @Test
+    void databaseAllowsMultipleCompletedOrdersAndOneActiveOrderForCourier() {
+        User customer = userRepository.save(new User("history-customer@example.com", "hash", Role.CUSTOMER));
+        User courier = userRepository.save(new User("history-courier@example.com", "hash", Role.COURIER));
+        for (int i = 0; i < 2; i++) {
+            DeliveryOrder completed = orderFor(customer, "Completed pickup " + i);
+            completed.assignCourier(courier);
+            completed.markPickedUp();
+            completed.markDelivered();
+            deliveryOrderRepository.saveAndFlush(completed);
+        }
+        DeliveryOrder active = orderFor(customer, "Active pickup");
+        active.assignCourier(courier);
+        deliveryOrderRepository.saveAndFlush(active);
+        entityManager.clear();
+
+        assertThat(deliveryOrderRepository.findAll()).hasSize(3);
+        assertThat(deliveryOrderRepository.findById(active.getId()).orElseThrow().getStatus())
+                .isEqualTo(OrderStatus.ASSIGNED);
     }
 
     private DeliveryOrder orderFor(User customer, String pickupAddress) {

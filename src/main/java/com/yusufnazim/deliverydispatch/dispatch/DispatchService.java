@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class DispatchService {
+
+    private static final String ACTIVE_COURIER_CONSTRAINT = "uk_delivery_orders_active_courier";
 
     private static final List<OrderStatus> ACTIVE_DELIVERY_STATUSES = List.of(
             OrderStatus.ASSIGNED,
@@ -104,11 +108,27 @@ public class DispatchService {
         try {
             order.assignCourier(courier);
             courier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.ON_DELIVERY);
+            // Check both entity versions and the active-courier constraint before recording the event.
             deliveryOrderRepository.flush();
-            deliveryTimelineService.recordCourierAssigned(order);
         } catch (ObjectOptimisticLockingFailureException exception) {
             throw new OrderAssignmentConflictException(orderId, exception);
+        } catch (DataIntegrityViolationException exception) {
+            if (violatesActiveCourierConstraint(exception)) {
+                throw new OrderAssignmentConflictException(orderId, exception);
+            }
+            throw exception;
         }
+        deliveryTimelineService.recordCourierAssigned(order);
+    }
+
+    private boolean violatesActiveCourierConstraint(DataIntegrityViolationException exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ConstraintViolationException violation
+                    && ACTIVE_COURIER_CONSTRAINT.equals(violation.getConstraintName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void validateCourierEligibleForDispatch(Long courierId, User courier) {
