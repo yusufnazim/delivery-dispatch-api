@@ -236,7 +236,7 @@ Location updates are allowed during delivery and do not change availability. Ava
 | Variable | Purpose | Default |
 | --- | --- | --- |
 | `POSTGRES_PORT` | Local PostgreSQL host port | `5432` |
-| `JWT_ISSUER` | JWT issuer claim | `delivery-dispatch-api` |
+| `JWT_ISSUER` | Issuer used for token generation and required during validation | `delivery-dispatch-api` |
 | `JWT_SECRET` | JWT signing secret outside local development | No non-local default |
 | `JWT_EXPIRATION` | JWT lifetime | `1h` |
 | `DEMO_DATA_ENABLED` | Enable local demo seed data | `true` in the local profile |
@@ -308,5 +308,9 @@ Protected endpoints expect the JWT returned by login:
 ```text
 Authorization: Bearer <jwt>
 ```
+
+Tokens must have a valid HS256 signature using the configured key and an `iss` matching `JWT_ISSUER`. Required claims are a positive JSON integer `userId` within Java's `long` range, a recognized `role`, a nonblank subject (`sub`), and an expiration (`exp`). Numeric strings and fractional user IDs are rejected.
+
+Spring's timestamp validation remains enabled for `exp` and optional `nbf`, with its default 60-second clock tolerance. Missing or invalid tokens return `401 AUTHENTICATION_REQUIRED`; valid tokens without the endpoint's required role return `403 ACCESS_DENIED`. Changing the configured issuer invalidates previously issued tokens with a different issuer.
 
 `POST /api/v1/auth/users` requires the `ADMIN` role and creates only `DISPATCHER` or `COURIER` accounts. Customer accounts use the public registration endpoint. Email addresses are trimmed and lowercased, and passwords are stored as BCrypt hashes.

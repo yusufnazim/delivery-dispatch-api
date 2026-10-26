@@ -4,6 +4,10 @@
 @customerToken = replace-with-customer-jwt
 @courierToken = replace-with-courier-jwt
 
+# Use tokens returned by this API's login endpoint with the current JWT_ISSUER.
+# Invalid issuer/identity claims, signatures, or timestamps return 401 AUTHENTICATION_REQUIRED.
+# Valid tokens with the wrong endpoint role return 403 ACCESS_DENIED.
+
 ### Health check
 GET {{baseUrl}}/actuator/health
 

@@ -21,7 +21,10 @@ public class OpenApiConfig {
 								new SecurityScheme()
 										.type(SecurityScheme.Type.HTTP)
 										.scheme("bearer")
-										.bearerFormat("JWT")))
+										.bearerFormat("JWT")
+										.description("Use the token returned by POST /api/v1/auth/login. "
+												+ "Invalid issuer, required claims, signature, or timestamps return 401. "
+												+ "A valid token with insufficient role access returns 403.")))
 				.info(new Info()
 						.title("Delivery Dispatch API")
 						.version("v1")

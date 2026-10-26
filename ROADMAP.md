@@ -7,6 +7,8 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Spring Boot API skeleton with Java 21, Maven Wrapper, local PostgreSQL Compose setup, Flyway, OpenAPI, and CI test workflow.
 - User persistence with roles for `ADMIN`, `DISPATCHER`, `COURIER`, and `CUSTOMER`.
 - Customer registration, login, JWT generation, JWT bearer authentication, and structured auth error responses.
+- JWT issuer and required identity/expiration validation, preserving HS256 signature and timestamp checks; invalid tokens return 401 before reaching controllers.
+- Signed-token regression tests for missing/malformed claims, expired tokens, future `nbf` values, wrong signing keys, tampering, and unsigned tokens; valid wrong-role access still returns 403.
 - Admin-only managed user creation for dispatcher and courier accounts.
 - Delivery order persistence model with customer and courier links, explicit order status values, pickup/dropoff coordinates, optimistic versioning, and Flyway schema migration.
 - Delivery order creation request and response DTOs with address and coordinate validation.
@@ -60,11 +62,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
-The current plan has 12 remaining focused commits across correctness, API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
-
-### Correctness And Security
-
-- Enforce JWT issuer and required identity-claim validation, with negative authentication tests.
+The current plan has 11 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
 
 ### API Usability
 
