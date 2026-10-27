@@ -8,6 +8,7 @@
 # Use tokens returned by this API's login endpoint with the current JWT_ISSUER.
 # Invalid issuer/identity claims, signatures, or timestamps return 401 AUTHENTICATION_REQUIRED.
 # Valid tokens with the wrong endpoint role return 403 ACCESS_DENIED.
+# API errors include details: [] except VALIDATION_FAILED, which lists field/message pairs without rejected values.
 
 ### Health check
 GET {{baseUrl}}/actuator/health
@@ -148,13 +149,25 @@ Content-Type: application/json
   "status": "UNKNOWN"
 }
 
-### Invalid fields: existing 400 VALIDATION_FAILED
+### Invalid fields: 400 VALIDATION_FAILED with email and password details
+# Both fields are reported as "must not be blank"; code and message remain unchanged.
 POST {{baseUrl}}/api/v1/auth/login
 Content-Type: application/json
 
 {
   "email": "",
   "password": ""
+}
+
+### Invalid managed role: details name the request field "role"
+POST {{baseUrl}}/api/v1/auth/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "email": "customer@example.com",
+  "password": "StrongPass123",
+  "role": "CUSTOMER"
 }
 
 ### Intentionally malformed JSON: 400 MALFORMED_REQUEST

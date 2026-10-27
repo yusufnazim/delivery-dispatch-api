@@ -40,6 +40,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -68,7 +69,9 @@ class JwtBearerAuthenticationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
-                .andExpect(jsonPath("$.message").value("Authentication is required"));
+                .andExpect(jsonPath("$.message").value("Authentication is required"))
+                .andExpect(jsonPath("$.details").isArray())
+                .andExpect(jsonPath("$.details").isEmpty());
     }
 
     @Test
@@ -78,7 +81,9 @@ class JwtBearerAuthenticationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
-                .andExpect(jsonPath("$.message").value("Authentication is required"));
+                .andExpect(jsonPath("$.message").value("Authentication is required"))
+                .andExpect(jsonPath("$.details").isArray())
+                .andExpect(jsonPath("$.details").isEmpty());
     }
 
     @ParameterizedTest
@@ -111,7 +116,9 @@ class JwtBearerAuthenticationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"))
-                .andExpect(jsonPath("$.message").value("Access is denied"));
+                .andExpect(jsonPath("$.message").value("Access is denied"))
+                .andExpect(jsonPath("$.details").isArray())
+                .andExpect(jsonPath("$.details").isEmpty());
     }
 
     @ParameterizedTest
@@ -247,11 +254,13 @@ class JwtBearerAuthenticationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(content().json("""
-                        {"code":"AUTHENTICATION_REQUIRED","message":"Authentication is required"}
-                        """));
+                        {"code":"AUTHENTICATION_REQUIRED","message":"Authentication is required","details":[]}
+                        """, JsonCompareMode.STRICT));
         mockMvc.perform(get("/api/v1/orders").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.details").isArray())
+                .andExpect(jsonPath("$.details").isEmpty());
     }
 
     private User user(Role role) {

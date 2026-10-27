@@ -1,6 +1,7 @@
 package com.yusufnazim.deliverydispatch.config;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -108,6 +109,21 @@ class PublicEndpointSmokeTest {
 		mockMvc.perform(get("/swagger-ui/index.html"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
+	}
+
+	@Test
+	void openApiDocumentsValidationDetailsAndEmptyDetailsForOtherErrors() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.components.schemas.ApiErrorResponse.required").value(hasItems("details")))
+				.andExpect(jsonPath("$.components.schemas.ApiErrorResponse.properties.details.type").value("array"))
+				.andExpect(jsonPath("$.components.schemas.ApiErrorResponse.properties.details.description")
+						.value(containsString("empty for non-validation errors")))
+				.andExpect(jsonPath("$.components.schemas.ApiErrorResponse.properties.details.items['$ref']")
+						.value("#/components/schemas/ValidationErrorDetail"))
+				.andExpect(jsonPath("$.components.schemas.ValidationErrorDetail.required").value(hasItems("field", "message")))
+				.andExpect(jsonPath("$.components.schemas.ValidationErrorDetail.properties.field.type").value("string"))
+				.andExpect(jsonPath("$.components.schemas.ValidationErrorDetail.properties.message.type").value("string"));
 	}
 
 	@Test

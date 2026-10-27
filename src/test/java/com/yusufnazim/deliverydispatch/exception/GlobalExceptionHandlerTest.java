@@ -2,6 +2,8 @@ package com.yusufnazim.deliverydispatch.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.yusufnazim.deliverydispatch.auth.AuthController;
+import com.yusufnazim.deliverydispatch.auth.dto.LoginRequest;
 import com.yusufnazim.deliverydispatch.auth.exception.EmailAlreadyRegisteredException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidLoginCredentialsException;
 import com.yusufnazim.deliverydispatch.auth.exception.InvalidManagedUserRoleException;
@@ -23,9 +25,15 @@ import com.yusufnazim.deliverydispatch.user.CourierAvailabilityStatus;
 import com.yusufnazim.deliverydispatch.user.Role;
 import java.lang.reflect.Method;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 class GlobalExceptionHandlerTest {
@@ -39,6 +47,7 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.code()).isEqualTo(errorCase.expectedCode());
         assertThat(response.message()).isEqualTo(errorCase.exception().getMessage());
+        assertThat(response.details()).isEmpty();
     }
 
     @ParameterizedTest
@@ -48,6 +57,42 @@ class GlobalExceptionHandlerTest {
 
         assertThat(responseStatus).isNotNull();
         assertThat(responseStatus.value()).isEqualTo(errorCase.expectedStatus());
+    }
+
+    @Test
+    void validationDetailsAreSortedAndDuplicateMessagesAreRemoved() throws Exception {
+        var errors = new BeanPropertyBindingResult(new LoginRequest("", ""), "loginRequest");
+        errors.addError(new FieldError("loginRequest", "password", "must not be blank"));
+        errors.addError(new FieldError("loginRequest", "email", "must not be blank"));
+        errors.addError(new FieldError("loginRequest", "password", "must not be blank"));
+        errors.addError(new FieldError("loginRequest", "password", "size must be between 8 and 72"));
+
+        ApiErrorResponse response = handler.handleValidationFailure(validationException(errors));
+
+        assertThat(response.details()).containsExactly(
+                new ValidationErrorDetail("email", "must not be blank"),
+                new ValidationErrorDetail("password", "must not be blank"),
+                new ValidationErrorDetail("password", "size must be between 8 and 72"));
+    }
+
+    @Test
+    void bindingFailuresAndRequestWideErrorsUseSafeFallbacks() throws Exception {
+        var errors = new BeanPropertyBindingResult(new LoginRequest("", "secret-value"), "loginRequest");
+        errors.addError(new FieldError("loginRequest", "password", "secret-value", true, null, null,
+                "Failed to convert rejected value [secret-value]"));
+        errors.addError(new ObjectError("loginRequest", null));
+
+        ApiErrorResponse response = handler.handleValidationFailure(validationException(errors));
+
+        assertThat(response.details()).containsExactly(
+                new ValidationErrorDetail("_request", "is invalid"),
+                new ValidationErrorDetail("password", "has an invalid value"));
+    }
+
+    private MethodArgumentNotValidException validationException(BeanPropertyBindingResult errors)
+            throws NoSuchMethodException {
+        return new MethodArgumentNotValidException(
+                new MethodParameter(AuthController.class.getMethod("login", LoginRequest.class), 0), errors);
     }
 
     private static Stream<DomainErrorCase> domainErrors() throws NoSuchMethodException {

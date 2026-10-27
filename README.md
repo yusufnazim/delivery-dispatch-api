@@ -235,12 +235,13 @@ The new order now has the complete created, assigned, picked-up, and delivered e
 
 ## Request Errors
 
-Request parsing and validation failures return `400` with the existing `code` and `message` JSON fields:
+Handled API errors retain `code` and `message` and now always include a `details` array. Parsing, authentication, authorization, not-found, and conflict responses use an empty array. For example, an invalid numeric path parameter returns `400`:
 
 ```json
 {
   "code": "INVALID_REQUEST_PARAMETER",
-  "message": "Request parameter is missing or invalid"
+  "message": "Request parameter is missing or invalid",
+  "details": []
 }
 ```
 
@@ -248,7 +249,22 @@ Request parsing and validation failures return `400` with the existing `code` an
 - `INVALID_REQUEST_PARAMETER`: a declared path/query parameter cannot be converted, or a required query parameter is missing. Message: `Request parameter is missing or invalid`.
 - `VALIDATION_FAILED`: DTO fields or declared controller parameter constraints fail validation. Message: `Request validation failed`.
 
-For example, an authenticated customer's `GET /api/v1/orders/abc` returns `400 INVALID_REQUEST_PARAMETER`; a valid numeric ID for a missing or unowned order still returns `404 ORDER_NOT_FOUND`. These parsing/validation responses do not echo rejected values or expose parser details. Field-level validation details are planned separately. Query validation is covered by MVC fixtures; list pagination and filtering are not shipped yet.
+For example, login with a blank email and password returns `400` with both validation failures:
+
+```json
+{
+  "code": "VALIDATION_FAILED",
+  "message": "Request validation failed",
+  "details": [
+    {"field": "email", "message": "must not be blank"},
+    {"field": "password", "message": "must not be blank"}
+  ]
+}
+```
+
+Validation details use public request field/parameter names and are sorted by field, then message. Distinct failures on the same field are retained; duplicate field/message pairs are removed. Request-wide errors use `_request`. Messages never include rejected passwords, bearer tokens, or other submitted values; validation annotations must not interpolate those values into their messages.
+
+An authenticated customer's `GET /api/v1/orders/abc` returns `400 INVALID_REQUEST_PARAMETER`; a valid numeric ID for a missing or unowned order still returns `404 ORDER_NOT_FOUND`. Parsing responses do not expose parser details. Query validation is covered by MVC fixtures; list pagination and filtering are not shipped yet.
 
 Existing domain error codes, authentication failures (`401`), role restrictions (`403`), and business conflicts (`409`) are unchanged. Controller return-value validation remains a server error (`500`), not a client error.
 

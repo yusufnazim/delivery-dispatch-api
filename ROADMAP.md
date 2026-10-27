@@ -52,6 +52,8 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - MVC slice coverage for delivery order and courier request validation, authentication, and role access.
 - Consistent 400 error bodies for unreadable JSON, unknown enum values, missing/unconvertible parameters, and MVC input validation, without leaking rejected values or parser details.
 - MVC regression coverage for malformed request errors while preserving existing DTO, authentication, authorization, and domain error behavior; return-value validation remains a server error.
+- Field-level DTO and controller parameter validation details using public field names and safe messages, with stable ordering and no rejected values; other API errors include an empty details array.
+- Serialization, multi-field validation, password/token non-disclosure, real JWT error serialization, and OpenAPI schema coverage for validation details.
 - Service, MVC, and PostgreSQL coverage for current-assignment ownership, active statuses, completed-history exclusion, and reads without state or timeline changes.
 - Local-profile demo data for every user role, two available couriers with locations, and pending and completed sample orders with timeline history.
 - OpenAPI operation documentation with endpoint summaries, role requirements, response descriptions, and a reusable JWT bearer security scheme.
@@ -66,11 +68,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
-The current plan has 9 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
+The current plan has 8 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
 
 ### API Usability
 
-- Return useful field-level validation details without exposing rejected secrets.
 - Add bounded customer order pagination with a stable response contract.
 - Add bounded dispatcher/admin order pagination and status filtering while preserving N+1-safe fetching.
 - Add bounded dispatcher/admin courier pagination and availability filtering.

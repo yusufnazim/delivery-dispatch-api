@@ -16,11 +16,21 @@ import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentConflictEx
 import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
+import java.util.Comparator;
+import java.util.stream.Stream;
+import org.springframework.context.MessageSourceResolvable;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -129,8 +139,8 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
-	public ApiErrorResponse handleValidationFailure() {
-		return new ApiErrorResponse("VALIDATION_FAILED", "Request validation failed");
+	public ApiErrorResponse handleValidationFailure(MethodArgumentNotValidException exception) {
+		return validationFailure(exception.getBindingResult().getAllErrors().stream().map(this::fieldDetail));
 	}
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)
@@ -152,6 +162,61 @@ public class GlobalExceptionHandler {
 		if (exception.isForReturnValue()) {
 			throw exception;
 		}
-		return handleValidationFailure();
+		return validationFailure(Stream.concat(
+				exception.getParameterValidationResults().stream().flatMap(this::parameterDetails),
+				exception.getCrossParameterValidationResults().stream()
+						.map(error -> new ValidationErrorDetail("_request", validationMessage(error)))));
+	}
+
+	private ApiErrorResponse validationFailure(Stream<ValidationErrorDetail> details) {
+		return new ApiErrorResponse("VALIDATION_FAILED", "Request validation failed", details
+				.distinct()
+				.sorted(Comparator.comparing(ValidationErrorDetail::field).thenComparing(ValidationErrorDetail::message))
+				.toList());
+	}
+
+	private ValidationErrorDetail fieldDetail(ObjectError error) {
+		String field = error instanceof FieldError fieldError ? fieldError.getField() : "_request";
+		// These Bean Validation helper properties are not fields in the request contract.
+		field = switch (field) {
+			case "managedUserRole" -> "role";
+			case "selfManagedStatus" -> "status";
+			default -> field;
+		};
+		return new ValidationErrorDetail(field, validationMessage(error));
+	}
+
+	private Stream<ValidationErrorDetail> parameterDetails(ParameterValidationResult result) {
+		if (result instanceof ParameterErrors errors) {
+			return errors.getAllErrors().stream().map(this::fieldDetail);
+		}
+		String field = parameterName(result.getMethodParameter());
+		return result.getResolvableErrors().stream()
+				.map(error -> new ValidationErrorDetail(field, validationMessage(error)));
+	}
+
+	private String parameterName(MethodParameter parameter) {
+		RequestParam query = parameter.getParameterAnnotation(RequestParam.class);
+		if (query != null) {
+			String name = query.name().isBlank() ? query.value() : query.name();
+			if (!name.isBlank()) {
+				return name;
+			}
+		}
+		PathVariable path = parameter.getParameterAnnotation(PathVariable.class);
+		if (path != null) {
+			String name = path.name().isBlank() ? path.value() : path.name();
+			if (!name.isBlank()) {
+				return name;
+			}
+		}
+		return parameter.getParameterName() == null ? "_request" : parameter.getParameterName();
+	}
+
+	private String validationMessage(MessageSourceResolvable error) {
+		if (error instanceof FieldError fieldError && fieldError.isBindingFailure()) {
+			return "has an invalid value";
+		}
+		return error.getDefaultMessage() == null ? "is invalid" : error.getDefaultMessage();
 	}
 }
