@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.yusufnazim.deliverydispatch.dto.PageResponse;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.dto.OperationalOrderResponse;
@@ -27,6 +29,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -123,20 +128,49 @@ class DeliveryOrderServiceTest {
     }
 
     @Test
-    void listCustomerOrdersReturnsOrdersFromRepositoryOrder() {
+    void listCustomerOrdersMapsOnlyTheRequestedPageAndPreservesTotalsAndOrder() {
         DeliveryOrder newestOrder = order(12L, OrderStatus.PENDING, "Pickup B");
         DeliveryOrder olderOrder = order(11L, OrderStatus.PENDING, "Pickup A");
-        when(deliveryOrderRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(7L))
-                .thenReturn(List.of(newestOrder, olderOrder));
+        PageRequest request = PageRequest.of(1, 2);
+        when(deliveryOrderRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(7L, request))
+                .thenReturn(new PageImpl<>(List.of(newestOrder, olderOrder), request, 5));
 
-        List<DeliveryOrderResponse> responses = deliveryOrderService.listCustomerOrders(7L);
+        PageResponse<DeliveryOrderResponse> response = deliveryOrderService.listCustomerOrders(7L, 1, 2);
 
-        assertThat(responses)
+        assertThat(response.items())
                 .extracting(DeliveryOrderResponse::id)
                 .containsExactly(12L, 11L);
-        assertThat(responses)
+        assertThat(response.items())
                 .extracting(DeliveryOrderResponse::pickupAddress)
                 .containsExactly("Pickup B", "Pickup A");
+        assertThat(response.page()).isEqualTo(1);
+        assertThat(response.size()).isEqualTo(2);
+        assertThat(response.totalElements()).isEqualTo(5);
+        assertThat(response.totalPages()).isEqualTo(3);
+        verify(deliveryOrderRepository).findByCustomerIdOrderByCreatedAtDescIdDesc(7L, request);
+        verifyNoInteractions(userRepository, deliveryTimelineService);
+    }
+
+    @Test
+    void listCustomerOrdersReturnsZeroTotalsWhenCustomerHasNoOrders() {
+        PageRequest request = PageRequest.of(0, 20);
+        when(deliveryOrderRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(7L, request))
+                .thenReturn(Page.empty(request));
+
+        PageResponse<DeliveryOrderResponse> response = deliveryOrderService.listCustomerOrders(7L, 0, 20);
+
+        assertThat(response).isEqualTo(new PageResponse<>(List.of(), 0, 20, 0, 0));
+    }
+
+    @Test
+    void listCustomerOrdersPreservesTotalsForBeyondLastPage() {
+        PageRequest request = PageRequest.of(3, 2);
+        when(deliveryOrderRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(7L, request))
+                .thenReturn(new PageImpl<>(List.of(), request, 5));
+
+        PageResponse<DeliveryOrderResponse> response = deliveryOrderService.listCustomerOrders(7L, 3, 2);
+
+        assertThat(response).isEqualTo(new PageResponse<>(List.of(), 3, 2, 5, 3));
     }
 
     @Test

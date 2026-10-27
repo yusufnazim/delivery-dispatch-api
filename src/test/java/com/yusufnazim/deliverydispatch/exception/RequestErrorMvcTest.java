@@ -339,7 +339,7 @@ class RequestErrorMvcTest {
                 .authorities(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
-    // Exercise MVC parameter validation without shipping pagination or test endpoints in the application.
+    // Exercise validation combinations independently of production endpoint contracts.
     @TestComponent
     @RestController
     @RequestMapping("/api/v1/test/request-errors")

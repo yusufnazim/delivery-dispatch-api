@@ -97,7 +97,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     private void seedOrders(User customer, User courier) {
-        if (!deliveryOrderRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(customer.getId()).isEmpty()) {
+        if (deliveryOrderRepository.existsByCustomerId(customer.getId())) {
             return;
         }
 

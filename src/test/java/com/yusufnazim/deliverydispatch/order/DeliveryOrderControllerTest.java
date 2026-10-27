@@ -11,11 +11,13 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yusufnazim.deliverydispatch.config.SecurityConfig;
+import com.yusufnazim.deliverydispatch.dto.PageResponse;
 import com.yusufnazim.deliverydispatch.exception.GlobalExceptionHandler;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
@@ -30,6 +32,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -38,6 +43,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
@@ -149,21 +155,126 @@ class DeliveryOrderControllerTest {
     }
 
     @Test
-    void listOrdersReturnsCustomerOrders() throws Exception {
-        when(deliveryOrderService.listCustomerOrders(7L))
-                .thenReturn(List.of(
+    void listOrdersDefaultsToFirstPageOfTwentyOrders() throws Exception {
+        when(deliveryOrderService.listCustomerOrders(7L, 0, 20))
+                .thenReturn(new PageResponse<>(List.of(
                         orderResponse(12L, "Pickup B"),
-                        orderResponse(11L, "Pickup A")));
+                        orderResponse(11L, "Pickup A")), 0, 20, 2, 1));
 
         mockMvc.perform(get("/api/v1/orders")
                         .with(authenticatedAs(7L, Role.CUSTOMER)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(12))
-                .andExpect(jsonPath("$[0].pickupAddress").value("Pickup B"))
-                .andExpect(jsonPath("$[1].id").value(11))
-                .andExpect(jsonPath("$[1].pickupAddress").value("Pickup A"));
+                .andExpect(jsonPath("$.items[0].id").value(12))
+                .andExpect(jsonPath("$.items[0].pickupAddress").value("Pickup B"))
+                .andExpect(jsonPath("$.items[1].id").value(11))
+                .andExpect(jsonPath("$.items[1].pickupAddress").value("Pickup A"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.pageable").doesNotExist());
 
-        verify(deliveryOrderService).listCustomerOrders(7L);
+        verify(deliveryOrderService).listCustomerOrders(7L, 0, 20);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"1,1", "2,10", "0,100", "21474836,100"})
+    void listOrdersAcceptsBoundedParametersAndUsesJwtOwnership(int page, int size) throws Exception {
+        when(deliveryOrderService.listCustomerOrders(7L, page, size))
+                .thenReturn(new PageResponse<>(List.of(), page, size, 0, 0));
+
+        mockMvc.perform(get("/api/v1/orders").with(authenticatedAs(7L, Role.CUSTOMER))
+                        .param("page", String.valueOf(page)).param("size", String.valueOf(size))
+                        .param("customerId", "99").param("sort", "id,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty())
+                .andExpect(jsonPath("$.page").value(page))
+                .andExpect(jsonPath("$.size").value(size))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
+
+        verify(deliveryOrderService).listCustomerOrders(7L, page, size);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"page,3,3,20", "size,10,0,10"})
+    void listOrdersDefaultsEachOmittedParameterIndependently(String parameter, String value, int page, int size)
+            throws Exception {
+        when(deliveryOrderService.listCustomerOrders(7L, page, size))
+                .thenReturn(new PageResponse<>(List.of(), page, size, 0, 0));
+
+        mockMvc.perform(get("/api/v1/orders").with(authenticatedAs(7L, Role.CUSTOMER)).param(parameter, value))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(page))
+                .andExpect(jsonPath("$.size").value(size));
+
+        verify(deliveryOrderService).listCustomerOrders(7L, page, size);
+    }
+
+    @Test
+    void listOrdersReturnsAnEmptyBeyondLastPageWithMatchingTotals() throws Exception {
+        when(deliveryOrderService.listCustomerOrders(7L, 3, 2))
+                .thenReturn(new PageResponse<>(List.of(), 3, 2, 5, 3));
+
+        mockMvc.perform(get("/api/v1/orders").with(authenticatedAs(7L, Role.CUSTOMER))
+                        .param("page", "3").param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        {"items":[],"page":3,"size":2,"totalElements":5,"totalPages":3}
+                        """, JsonCompareMode.STRICT));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "page,-1,must be greater than or equal to 0",
+            "page,21474837,must be less than or equal to 21474836",
+            "size,0,must be greater than or equal to 1",
+            "size,-1,must be greater than or equal to 1",
+            "size,101,must be less than or equal to 100"
+    })
+    void listOrdersRejectsOutOfRangeParametersWithFieldDetails(String parameter, String value, String message)
+            throws Exception {
+        mockMvc.perform(get("/api/v1/orders").with(authenticatedAs(7L, Role.CUSTOMER)).param(parameter, value))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.details.length()").value(1))
+                .andExpect(jsonPath("$.details[0].field").value(parameter))
+                .andExpect(jsonPath("$.details[0].message").value(message));
+
+        verifyNoInteractions(deliveryOrderService);
+    }
+
+    @Test
+    void listOrdersReportsBothInvalidParameters() throws Exception {
+        mockMvc.perform(get("/api/v1/orders").with(authenticatedAs(7L, Role.CUSTOMER))
+                        .param("page", "-1").param("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.length()").value(2))
+                .andExpect(jsonPath("$.details[0].field").value("page"))
+                .andExpect(jsonPath("$.details[1].field").value("size"));
+
+        verifyNoInteractions(deliveryOrderService);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"page,abc", "size,abc", "page,1.5", "size,1.5", "page,2147483648", "size,2147483648"})
+    void listOrdersRejectsNonIntegerParameters(String parameter, String value) throws Exception {
+        mockMvc.perform(get("/api/v1/orders").with(authenticatedAs(7L, Role.CUSTOMER)).param(parameter, value))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST_PARAMETER"))
+                .andExpect(jsonPath("$.details").isEmpty());
+
+        verifyNoInteractions(deliveryOrderService);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Role.class, names = {"ADMIN", "DISPATCHER", "COURIER"})
+    void listOrdersRejectsNonCustomerRoles(Role role) throws Exception {
+        mockMvc.perform(get("/api/v1/orders").with(authenticatedAs(9L, role)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        verifyNoInteractions(deliveryOrderService);
     }
 
     @Test

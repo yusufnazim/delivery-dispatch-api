@@ -20,6 +20,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -96,7 +97,7 @@ class DemoDataSeederTest {
                 });
 
         List<DeliveryOrder> orders = deliveryOrderRepository
-                .findByCustomerIdOrderByCreatedAtDescIdDesc(customer.getId());
+                .findByCustomerIdOrderByCreatedAtDescIdDesc(customer.getId(), PageRequest.of(0, 20)).getContent();
         assertThat(orders)
                 .extracting(DeliveryOrder::getStatus)
                 .containsExactlyInAnyOrder(OrderStatus.PENDING, OrderStatus.DELIVERED);

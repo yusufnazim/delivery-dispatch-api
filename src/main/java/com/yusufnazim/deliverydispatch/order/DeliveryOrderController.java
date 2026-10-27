@@ -2,12 +2,14 @@ package com.yusufnazim.deliverydispatch.order;
 
 import static com.yusufnazim.deliverydispatch.config.OpenApiConfig.SECURITY_SCHEME_NAME;
 
+import com.yusufnazim.deliverydispatch.dto.PageResponse;
 import com.yusufnazim.deliverydispatch.exception.ApiErrorResponse;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.timeline.dto.DeliveryEventResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -15,6 +17,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,6 +31,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -79,10 +84,22 @@ public class DeliveryOrderController {
     @PreAuthorize("hasRole('CUSTOMER')")
     @Operation(
             summary = "List customer orders",
-            description = "Returns the authenticated customer's orders from newest to oldest.")
-    @ApiResponse(responseCode = "200", description = "Customer orders returned")
-    public List<DeliveryOrderResponse> listOrders(@AuthenticationPrincipal Jwt jwt) {
-        return deliveryOrderService.listCustomerOrders(userIdFrom(jwt));
+            description = "Returns only the authenticated customer's orders as a page object, ordered by "
+                    + "createdAt descending, then id descending. Empty and beyond-last pages return 200 with empty items.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Customer order page returned"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "INVALID_REQUEST_PARAMETER for non-integer parameters, or VALIDATION_FAILED for out-of-range page or size",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
+    public PageResponse<DeliveryOrderResponse> listOrders(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "Zero-based page number; capped to keep database offsets within the supported integer range")
+            @RequestParam(defaultValue = "0") @Min(0) @Max(Integer.MAX_VALUE / 100) int page,
+            @Parameter(description = "Orders per page, from 1 to 100")
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return deliveryOrderService.listCustomerOrders(userIdFrom(jwt), page, size);
     }
 
     @GetMapping("/{orderId}")

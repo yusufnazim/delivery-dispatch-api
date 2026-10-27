@@ -1,5 +1,6 @@
 package com.yusufnazim.deliverydispatch.order;
 
+import com.yusufnazim.deliverydispatch.dto.PageResponse;
 import com.yusufnazim.deliverydispatch.order.dto.CreateDeliveryOrderRequest;
 import com.yusufnazim.deliverydispatch.order.dto.DeliveryOrderResponse;
 import com.yusufnazim.deliverydispatch.order.dto.OperationalOrderResponse;
@@ -10,6 +11,7 @@ import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,10 +52,10 @@ public class DeliveryOrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<DeliveryOrderResponse> listCustomerOrders(Long customerId) {
-        return deliveryOrderRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(customerId).stream()
-                .map(DeliveryOrderResponse::from)
-                .toList();
+    public PageResponse<DeliveryOrderResponse> listCustomerOrders(Long customerId, int page, int size) {
+        return PageResponse.from(deliveryOrderRepository
+                .findByCustomerIdOrderByCreatedAtDescIdDesc(customerId, PageRequest.of(page, size))
+                .map(DeliveryOrderResponse::from));
     }
 
     @Transactional(readOnly = true)

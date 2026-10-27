@@ -6,6 +6,7 @@ Spring Boot REST API for customer delivery orders, courier dispatch rules, and d
 
 - JWT authentication with `ADMIN`, `DISPATCHER`, `COURIER`, and `CUSTOMER` roles.
 - Customer registration, login, order creation, lookup, cancellation, and timeline endpoints.
+- Bounded customer order history with database-backed pagination and ownership-filtered totals.
 - Courier availability, location, current assignment, pickup, and delivery endpoints.
 - Nearest-courier selection using Haversine distance and stored coordinates.
 - Dispatcher/admin endpoints for automatic and manual courier assignment.
@@ -107,7 +108,7 @@ curl -s http://localhost:8080/api/v1/orders \
   -H "Authorization: Bearer $CUSTOMER_TOKEN"
 ```
 
-Copy the `id` of the order whose status is `DELIVERED`, then inspect its chronological timeline:
+The response contains `items`, `page`, `size`, `totalElements`, and `totalPages`. In `items`, copy the `id` of the order whose status is `DELIVERED`, then inspect its chronological timeline:
 
 ```bash
 export DELIVERED_ORDER_ID='<delivered-order-id>'
@@ -233,6 +234,24 @@ curl -s "http://localhost:8080/api/v1/orders/$NEW_ORDER_ID/timeline" \
 
 The new order now has the complete created, assigned, picked-up, and delivered event sequence.
 
+## Customer Order Pagination
+
+`GET /api/v1/orders` returns a page object instead of the previous array. This is an intentional pre-release response change: clients should read orders from `items`.
+
+- `page` is optional and zero-based; default `0`, allowed range `0` to `21474836`. The upper bound keeps database offsets within JPA's supported integer range for every allowed size.
+- `size` is optional; default `20`, allowed range `1` to `100`.
+- Items and totals include only orders owned by the authenticated customer. Ordering is fixed: `createdAt DESC, id DESC`.
+- Empty and beyond-last pages return `200` with `items: []`, the requested page/size, and the matching totals. A customer without orders has `totalElements: 0` and `totalPages: 0`.
+
+For example, request the second page of ten orders:
+
+```bash
+curl -s "http://localhost:8080/api/v1/orders?page=1&size=10" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN"
+```
+
+Out-of-range values return `400 VALIDATION_FAILED` with field details; non-integer values return `400 INVALID_REQUEST_PARAMETER`. Pages are not a snapshot across requests: new orders can shift later pages. Dispatcher/admin order and courier lists remain arrays; their pagination and filtering are planned separately.
+
 ## Request Errors
 
 Handled API errors retain `code` and `message` and now always include a `details` array. Parsing, authentication, authorization, not-found, and conflict responses use an empty array. For example, an invalid numeric path parameter returns `400`:
@@ -264,7 +283,7 @@ For example, login with a blank email and password returns `400` with both valid
 
 Validation details use public request field/parameter names and are sorted by field, then message. Distinct failures on the same field are retained; duplicate field/message pairs are removed. Request-wide errors use `_request`. Messages never include rejected passwords, bearer tokens, or other submitted values; validation annotations must not interpolate those values into their messages.
 
-An authenticated customer's `GET /api/v1/orders/abc` returns `400 INVALID_REQUEST_PARAMETER`; a valid numeric ID for a missing or unowned order still returns `404 ORDER_NOT_FOUND`. Parsing responses do not expose parser details. Query validation is covered by MVC fixtures; list pagination and filtering are not shipped yet.
+An authenticated customer's `GET /api/v1/orders/abc` returns `400 INVALID_REQUEST_PARAMETER`; a valid numeric ID for a missing or unowned order still returns `404 ORDER_NOT_FOUND`. Parsing responses do not expose parser details. Customer pagination validates query parameters, for example `GET /api/v1/orders?page=-1&size=101` returns details for both `page` and `size`.
 
 Existing domain error codes, authentication failures (`401`), role restrictions (`403`), and business conflicts (`409`) are unchanged. Controller return-value validation remains a server error (`500`), not a client error.
 
@@ -322,6 +341,8 @@ Dispatch concurrency tests synchronize two real transactions and verify manual/m
 Courier state tests also overlap availability/location writes with assignment and completion, verify both winning and losing transactions, and check persisted state and timeline rollback.
 
 Current-assignment tests cover role access, JWT-derived ownership, persisted active orders, idle results, and completed-history exclusion with Open Session in View disabled.
+
+Customer pagination tests cover parameter defaults and bounds, ownership-filtered counts, timestamp/id ordering, empty and beyond-last pages, and bounded PostgreSQL entity loading.
 
 ## Database Operations
 

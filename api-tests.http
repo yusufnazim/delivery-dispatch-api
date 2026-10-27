@@ -59,8 +59,20 @@ Content-Type: application/json
   "dropoffLongitude": 29.057000
 }
 
-### List customer delivery orders
+### List customer delivery orders with defaults: page 0, size 20
+# Response is now {items, page, size, totalElements, totalPages}, not an array.
+# Only the authenticated customer's orders are included, newest first (createdAt DESC, id DESC).
 GET {{baseUrl}}/api/v1/orders
+Authorization: Bearer {{customerToken}}
+
+### Request the second page of ten customer orders
+# page is zero-based (0..21474836); size is optional (1..100).
+# An empty or beyond-last page returns 200 with items: [] and matching totals.
+GET {{baseUrl}}/api/v1/orders?page=1&size=10
+Authorization: Bearer {{customerToken}}
+
+### Invalid pagination: 400 VALIDATION_FAILED with page and size details
+GET {{baseUrl}}/api/v1/orders?page=-1&size=101
 Authorization: Bearer {{customerToken}}
 
 ### Get customer delivery order

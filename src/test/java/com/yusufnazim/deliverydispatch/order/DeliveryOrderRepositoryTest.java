@@ -7,8 +7,11 @@ import com.yusufnazim.deliverydispatch.user.Role;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import org.hibernate.Hibernate;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -17,6 +20,8 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -27,7 +32,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @DataJpaTest(properties = {
         "spring.autoconfigure.exclude=",
         "spring.flyway.enabled=true",
-        "spring.jpa.hibernate.ddl-auto=validate"
+        "spring.jpa.hibernate.ddl-auto=validate",
+        "spring.jpa.properties.hibernate.generate_statistics=true",
+        "spring.jpa.properties.hibernate.session.events.log=false"
 })
 @Testcontainers(disabledWithoutDocker = true)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -86,21 +93,104 @@ class DeliveryOrderRepositoryTest {
     }
 
     @Test
-    void findsCustomerOrdersNewestFirst() {
-        User customer = userRepository.save(new User(
-                "orders@example.com",
-                "hashed-password",
-                Role.CUSTOMER));
-        DeliveryOrder firstOrder = deliveryOrderRepository.save(orderFor(customer, "Pickup A"));
-        DeliveryOrder secondOrder = deliveryOrderRepository.save(orderFor(customer, "Pickup B"));
+    void pagesOnlyOwnedOrdersByTimestampThenIdWithoutLoadingTheFullHistory() {
+        User customer = userRepository.save(new User("orders@example.com", "hash", Role.CUSTOMER));
+        User otherCustomer = userRepository.save(new User("other-orders@example.com", "hash", Role.CUSTOMER));
+        DeliveryOrder newest = deliveryOrderRepository.save(orderFor(customer, "Newest"));
+        DeliveryOrder older = deliveryOrderRepository.save(orderFor(customer, "Older"));
+        DeliveryOrder tied = deliveryOrderRepository.save(orderFor(customer, "Same time, higher id"));
+        deliveryOrderRepository.save(orderFor(otherCustomer, "Other customer's order"));
         deliveryOrderRepository.flush();
+        setCreatedAt(newest, "2026-10-28T12:00:00Z");
+        setCreatedAt(older, "2026-10-28T11:00:00Z");
+        setCreatedAt(tied, "2026-10-28T11:00:00Z");
+        entityManager.clear();
+        Statistics statistics = entityManager.getEntityManager().getEntityManagerFactory()
+                .unwrap(SessionFactory.class).getStatistics();
+        statistics.clear();
+
+        Page<DeliveryOrder> firstPage = deliveryOrderRepository
+                .findByCustomerIdOrderByCreatedAtDescIdDesc(customer.getId(), PageRequest.of(0, 2));
+
+        assertThat(firstPage.getContent()).extracting(DeliveryOrder::getId)
+                .containsExactly(newest.getId(), tied.getId());
+        assertThat(firstPage.getTotalElements()).isEqualTo(3);
+        assertThat(firstPage.getTotalPages()).isEqualTo(2);
+        assertThat(statistics.getEntityLoadCount()).isEqualTo(2);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+        assertThat(firstPage.getContent()).allSatisfy(order ->
+                assertThat(Hibernate.isInitialized(order.getCustomer())).isFalse());
+
+        Page<DeliveryOrder> lastPage = deliveryOrderRepository
+                .findByCustomerIdOrderByCreatedAtDescIdDesc(customer.getId(), PageRequest.of(1, 2));
+
+        assertThat(lastPage.getContent()).extracting(DeliveryOrder::getId).containsExactly(older.getId());
+        assertThat(lastPage.getTotalElements()).isEqualTo(3);
+        assertThat(lastPage.getTotalPages()).isEqualTo(2);
+    }
+
+    @Test
+    void emptyCustomerPagesDoNotIncludeAnotherCustomersItemsOrTotals() {
+        User emptyCustomer = userRepository.save(new User("empty@example.com", "hash", Role.CUSTOMER));
+        User otherCustomer = userRepository.save(new User("other@example.com", "hash", Role.CUSTOMER));
+        deliveryOrderRepository.saveAndFlush(orderFor(otherCustomer, "Other customer's order"));
         entityManager.clear();
 
-        List<DeliveryOrder> orders = deliveryOrderRepository.findByCustomerIdOrderByCreatedAtDescIdDesc(customer.getId());
+        for (int pageNumber : List.of(0, 1)) {
+            Page<DeliveryOrder> page = deliveryOrderRepository
+                    .findByCustomerIdOrderByCreatedAtDescIdDesc(emptyCustomer.getId(), PageRequest.of(pageNumber, 20));
 
-        assertThat(orders)
-                .extracting(DeliveryOrder::getId)
-                .containsExactly(secondOrder.getId(), firstOrder.getId());
+            assertThat(page.getContent()).isEmpty();
+            assertThat(page.getNumber()).isEqualTo(pageNumber);
+            assertThat(page.getSize()).isEqualTo(20);
+            assertThat(page.getTotalElements()).isZero();
+            assertThat(page.getTotalPages()).isZero();
+        }
+    }
+
+    @Test
+    void exactPageBoundariesAndBeyondLastPagesRetainOwnedTotals() {
+        User customer = userRepository.save(new User("boundaries@example.com", "hash", Role.CUSTOMER));
+        User otherCustomer = userRepository.save(new User("other-boundaries@example.com", "hash", Role.CUSTOMER));
+        for (int i = 0; i < 4; i++) {
+            deliveryOrderRepository.save(orderFor(customer, "Pickup " + i));
+        }
+        deliveryOrderRepository.saveAndFlush(orderFor(otherCustomer, "Not in the total"));
+        entityManager.clear();
+
+        Page<DeliveryOrder> lastPage = deliveryOrderRepository
+                .findByCustomerIdOrderByCreatedAtDescIdDesc(customer.getId(), PageRequest.of(1, 2));
+
+        assertThat(lastPage.getContent()).hasSize(2);
+        assertThat(lastPage.getTotalElements()).isEqualTo(4);
+        assertThat(lastPage.getTotalPages()).isEqualTo(2);
+        for (int pageNumber : List.of(2, 3)) {
+            Page<DeliveryOrder> page = deliveryOrderRepository
+                    .findByCustomerIdOrderByCreatedAtDescIdDesc(customer.getId(), PageRequest.of(pageNumber, 2));
+
+            assertThat(page.getContent()).isEmpty();
+            assertThat(page.getNumber()).isEqualTo(pageNumber);
+            assertThat(page.getTotalElements()).isEqualTo(4);
+            assertThat(page.getTotalPages()).isEqualTo(2);
+        }
+
+        Page<DeliveryOrder> maximumPage = deliveryOrderRepository
+                .findByCustomerIdOrderByCreatedAtDescIdDesc(customer.getId(), PageRequest.of(Integer.MAX_VALUE / 100, 100));
+        assertThat(maximumPage.getContent()).isEmpty();
+        assertThat(maximumPage.getTotalElements()).isEqualTo(4);
+        assertThat(maximumPage.getTotalPages()).isEqualTo(1);
+    }
+
+    @Test
+    void customerOrderExistenceIsScopedToTheCustomer() {
+        User customer = userRepository.save(new User("exists@example.com", "hash", Role.CUSTOMER));
+        User otherCustomer = userRepository.save(new User("does-not-exist@example.com", "hash", Role.CUSTOMER));
+        assertThat(deliveryOrderRepository.existsByCustomerId(customer.getId())).isFalse();
+        deliveryOrderRepository.saveAndFlush(orderFor(customer, "Existing order"));
+        entityManager.clear();
+
+        assertThat(deliveryOrderRepository.existsByCustomerId(customer.getId())).isTrue();
+        assertThat(deliveryOrderRepository.existsByCustomerId(otherCustomer.getId())).isFalse();
     }
 
     @Test
@@ -228,6 +318,13 @@ class DeliveryOrderRepositoryTest {
         assertThat(deliveryOrderRepository.findAll()).hasSize(3);
         assertThat(deliveryOrderRepository.findById(active.getId()).orElseThrow().getStatus())
                 .isEqualTo(OrderStatus.ASSIGNED);
+    }
+
+    private void setCreatedAt(DeliveryOrder order, String timestamp) {
+        entityManager.getEntityManager().createNativeQuery("update delivery_orders set created_at = :time where id = :id")
+                .setParameter("time", Instant.parse(timestamp))
+                .setParameter("id", order.getId())
+                .executeUpdate();
     }
 
     private DeliveryOrder orderFor(User customer, String pickupAddress) {

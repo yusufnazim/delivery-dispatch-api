@@ -16,6 +16,8 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Customer order creation endpoint restricted to authenticated customers.
 - Customer order lookup and listing service with ownership-safe not-found behavior.
 - Customer order lookup and listing endpoints restricted to authenticated customers.
+- Database-backed customer order pagination with optional page/size parameters (defaults 0/20, maximum size 100), a stable page response, ownership-filtered totals, and deterministic timestamp/id ordering.
+- MVC, serialization, OpenAPI, and PostgreSQL pagination coverage for bounds, ownership, page boundaries, empty results, and bounded entity loading.
 - Customer order cancellation service for owned pending orders.
 - Customer order cancellation endpoint restricted to authenticated customers.
 - Courier profile fields persisted on user accounts with explicit Flyway schema support.
@@ -68,11 +70,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
-The current plan has 8 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
+The current plan has 7 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
 
 ### API Usability
 
-- Add bounded customer order pagination with a stable response contract.
 - Add bounded dispatcher/admin order pagination and status filtering while preserving N+1-safe fetching.
 - Add bounded dispatcher/admin courier pagination and availability filtering.
 

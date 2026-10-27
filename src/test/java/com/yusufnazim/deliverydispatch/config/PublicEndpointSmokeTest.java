@@ -1,7 +1,9 @@
 package com.yusufnazim.deliverydispatch.config;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -79,6 +81,8 @@ class PublicEndpointSmokeTest {
 
 	@ParameterizedTest
 	@CsvSource({
+			"get,/api/v1/orders,INVALID_REQUEST_PARAMETER",
+			"get,/api/v1/orders,VALIDATION_FAILED",
 			"get,/api/v1/orders/{orderId},INVALID_REQUEST_PARAMETER",
 			"delete,/api/v1/orders/{orderId},INVALID_REQUEST_PARAMETER",
 			"get,/api/v1/orders/{orderId}/timeline,INVALID_REQUEST_PARAMETER",
@@ -102,6 +106,35 @@ class PublicEndpointSmokeTest {
 				.andExpect(jsonPath(responsePath + ".description").value(containsString(errorCode)))
 				.andExpect(jsonPath(responsePath + ".content['*/*'].schema['$ref']")
 						.value("#/components/schemas/ApiErrorResponse"));
+	}
+
+	@Test
+	void openApiDocumentsCustomerOrderPagination() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'page')].schema.default")
+						.value(hasItems(0)))
+				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'page')].schema.minimum")
+						.value(hasItems(0)))
+				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'page')].schema.maximum")
+						.value(hasItems(21474836)))
+				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'size')].schema.default")
+						.value(hasItems(20)))
+				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'size')].schema.minimum")
+						.value(hasItems(1)))
+				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'size')].schema.maximum")
+						.value(hasItems(100)))
+				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[*].required")
+						.value(everyItem(is(false))))
+				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.responses['200'].content['*/*'].schema['$ref']")
+						.value("#/components/schemas/PageResponseDeliveryOrderResponse"))
+				.andExpect(jsonPath("$.components.schemas.PageResponseDeliveryOrderResponse.required")
+						.value(hasItems("items", "page", "size", "totalElements", "totalPages")))
+				.andExpect(jsonPath("$.components.schemas.PageResponseDeliveryOrderResponse.properties.items.items['$ref']")
+						.value("#/components/schemas/DeliveryOrderResponse"))
+				.andExpect(jsonPath("$.components.schemas.PageResponseDeliveryOrderResponse.properties.totalElements.format")
+						.value("int64"))
+				.andExpect(jsonPath("$.components.schemas.PageResponseDeliveryOrderResponse.properties.pageable").doesNotExist());
 	}
 
 	@Test
