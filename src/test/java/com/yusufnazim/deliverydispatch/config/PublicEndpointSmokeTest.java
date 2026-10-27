@@ -1,11 +1,14 @@
 package com.yusufnazim.deliverydispatch.config;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,6 +31,7 @@ class PublicEndpointSmokeTest {
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.info.title").value("Delivery Dispatch API"))
+				.andExpect(jsonPath("$.paths['/api/v1/test/request-errors/query']").doesNotExist())
 				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
 				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
 				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
@@ -70,6 +74,33 @@ class PublicEndpointSmokeTest {
 	void healthEndpointIsPubliclyAccessible() throws Exception {
 		mockMvc.perform(get("/actuator/health"))
 				.andExpect(status().isOk());
+	}
+
+	@ParameterizedTest
+	@CsvSource({
+			"get,/api/v1/orders/{orderId},INVALID_REQUEST_PARAMETER",
+			"delete,/api/v1/orders/{orderId},INVALID_REQUEST_PARAMETER",
+			"get,/api/v1/orders/{orderId}/timeline,INVALID_REQUEST_PARAMETER",
+			"post,/api/v1/dispatch/orders/{orderId}/auto-assign,INVALID_REQUEST_PARAMETER",
+			"post,/api/v1/dispatch/orders/{orderId}/assign,INVALID_REQUEST_PARAMETER",
+			"post,/api/v1/couriers/me/orders/{orderId}/pickup,INVALID_REQUEST_PARAMETER",
+			"post,/api/v1/couriers/me/orders/{orderId}/deliver,INVALID_REQUEST_PARAMETER",
+			"post,/api/v1/auth/register,MALFORMED_REQUEST",
+			"post,/api/v1/auth/login,MALFORMED_REQUEST",
+			"post,/api/v1/auth/users,MALFORMED_REQUEST",
+			"post,/api/v1/orders,MALFORMED_REQUEST",
+			"post,/api/v1/dispatch/orders/{orderId}/assign,MALFORMED_REQUEST",
+			"patch,/api/v1/couriers/me/availability,MALFORMED_REQUEST",
+			"patch,/api/v1/couriers/me/location,MALFORMED_REQUEST"
+	})
+	void openApiDocumentsRequestErrors(String method, String path, String errorCode) throws Exception {
+		String responsePath = "$.paths['" + path + "']." + method + ".responses['400']";
+
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(responsePath + ".description").value(containsString(errorCode)))
+				.andExpect(jsonPath(responsePath + ".content['*/*'].schema['$ref']")
+						.value("#/components/schemas/ApiErrorResponse"));
 	}
 
 	@Test

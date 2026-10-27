@@ -50,6 +50,8 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Flyway V8 upgrade tests for existing data, including non-destructive refusal of duplicate active courier assignments.
 - PostgreSQL-backed integration coverage for invalid delivery status transitions.
 - MVC slice coverage for delivery order and courier request validation, authentication, and role access.
+- Consistent 400 error bodies for unreadable JSON, unknown enum values, missing/unconvertible parameters, and MVC input validation, without leaking rejected values or parser details.
+- MVC regression coverage for malformed request errors while preserving existing DTO, authentication, authorization, and domain error behavior; return-value validation remains a server error.
 - Service, MVC, and PostgreSQL coverage for current-assignment ownership, active statuses, completed-history exclusion, and reads without state or timeline changes.
 - Local-profile demo data for every user role, two available couriers with locations, and pending and completed sample orders with timeline history.
 - OpenAPI operation documentation with endpoint summaries, role requirements, response descriptions, and a reusable JWT bearer security scheme.
@@ -64,11 +66,10 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
-The current plan has 10 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
+The current plan has 9 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
 
 ### API Usability
 
-- Standardize malformed JSON, enum, path, and query parameter error responses.
 - Return useful field-level validation details without exposing rejected secrets.
 - Add bounded customer order pagination with a stable response contract.
 - Add bounded dispatcher/admin order pagination and status filtering while preserving N+1-safe fetching.

@@ -134,3 +134,31 @@ Authorization: Bearer {{courierToken}}
 # On conflict, completion and its timeline event roll back; reload current state before retrying.
 POST {{baseUrl}}/api/v1/couriers/me/orders/{{currentOrderId}}/deliver
 Authorization: Bearer {{courierToken}}
+
+### Invalid order id: 400 INVALID_REQUEST_PARAMETER
+GET {{baseUrl}}/api/v1/orders/abc
+Authorization: Bearer {{customerToken}}
+
+### Unknown availability enum: 400 MALFORMED_REQUEST
+PATCH {{baseUrl}}/api/v1/couriers/me/availability
+Authorization: Bearer {{courierToken}}
+Content-Type: application/json
+
+{
+  "status": "UNKNOWN"
+}
+
+### Invalid fields: existing 400 VALIDATION_FAILED
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "",
+  "password": ""
+}
+
+### Intentionally malformed JSON: 400 MALFORMED_REQUEST
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{"email":"customer@example.com","password":

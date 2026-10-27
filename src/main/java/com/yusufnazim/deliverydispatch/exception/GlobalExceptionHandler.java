@@ -17,10 +17,14 @@ import com.yusufnazim.deliverydispatch.order.exception.OrderAssignmentNotAllowed
 import com.yusufnazim.deliverydispatch.order.exception.OrderCancellationNotAllowedException;
 import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -127,5 +131,27 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	public ApiErrorResponse handleValidationFailure() {
 		return new ApiErrorResponse("VALIDATION_FAILED", "Request validation failed");
+	}
+
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ApiErrorResponse handleUnreadableRequestBody() {
+		return new ApiErrorResponse("MALFORMED_REQUEST", "Request body is missing or malformed");
+	}
+
+	@ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ApiErrorResponse handleInvalidRequestParameter() {
+		return new ApiErrorResponse("INVALID_REQUEST_PARAMETER", "Request parameter is missing or invalid");
+	}
+
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ApiErrorResponse handleMethodValidationFailure(HandlerMethodValidationException exception) {
+		// Invalid controller return values are server errors, not invalid client input.
+		if (exception.isForReturnValue()) {
+			throw exception;
+		}
+		return handleValidationFailure();
 	}
 }

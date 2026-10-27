@@ -63,6 +63,10 @@ public class DispatchController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Nearest eligible courier assigned"),
             @ApiResponse(
+                    responseCode = "400",
+                    description = "INVALID_REQUEST_PARAMETER if orderId cannot be converted to a 64-bit integer",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(
                     responseCode = "404",
                     description = "Delivery order was not found",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
@@ -84,7 +88,8 @@ public class DispatchController {
             @ApiResponse(responseCode = "200", description = "Specified courier assigned"),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Courier identifier is missing or invalid",
+                    description = "INVALID_REQUEST_PARAMETER for an unreadable orderId; MALFORMED_REQUEST for unreadable JSON; "
+                            + "VALIDATION_FAILED for a missing or invalid courierId",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "404",

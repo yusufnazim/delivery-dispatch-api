@@ -84,7 +84,8 @@ public class CourierController {
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Availability value is missing or cannot be set manually",
+                    description = "MALFORMED_REQUEST for unreadable JSON or an unknown status; "
+                            + "VALIDATION_FAILED if status is missing or cannot be set manually",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "404",
@@ -110,7 +111,7 @@ public class CourierController {
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Latitude or longitude validation failed",
+                    description = "MALFORMED_REQUEST for unreadable JSON, or VALIDATION_FAILED for invalid coordinates",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "404",
@@ -130,6 +131,10 @@ public class CourierController {
             description = "Moves an assigned order to PICKED_UP for its assigned courier.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Order marked as picked up"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "INVALID_REQUEST_PARAMETER if orderId cannot be converted to a 64-bit integer",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "404",
                     description = "Order was not found or is assigned to another courier",
@@ -152,6 +157,10 @@ public class CourierController {
             description = "Moves a picked-up order to DELIVERED and makes its assigned courier available.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Order marked as delivered"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "INVALID_REQUEST_PARAMETER if orderId cannot be converted to a 64-bit integer",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "404",
                     description = "Order was not found or is assigned to another courier",

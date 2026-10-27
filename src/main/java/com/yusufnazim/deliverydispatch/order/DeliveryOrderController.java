@@ -62,7 +62,7 @@ public class DeliveryOrderController {
             @ApiResponse(responseCode = "201", description = "Delivery order created"),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Address or coordinate validation failed",
+                    description = "MALFORMED_REQUEST for unreadable JSON, or VALIDATION_FAILED for invalid addresses or coordinates",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "404",
@@ -93,6 +93,10 @@ public class DeliveryOrderController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Delivery order returned"),
             @ApiResponse(
+                    responseCode = "400",
+                    description = "INVALID_REQUEST_PARAMETER if orderId cannot be converted to a 64-bit integer",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(
                     responseCode = "404",
                     description = "Order was not found or does not belong to the customer",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
@@ -111,6 +115,10 @@ public class DeliveryOrderController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Order timeline returned"),
             @ApiResponse(
+                    responseCode = "400",
+                    description = "INVALID_REQUEST_PARAMETER if orderId cannot be converted to a 64-bit integer",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(
                     responseCode = "404",
                     description = "Order was not found or does not belong to the customer",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
@@ -128,6 +136,10 @@ public class DeliveryOrderController {
             description = "Cancels an owned pending order before courier assignment.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Delivery order cancelled"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "INVALID_REQUEST_PARAMETER if orderId cannot be converted to a 64-bit integer",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(
                     responseCode = "404",
                     description = "Order was not found or does not belong to the customer",

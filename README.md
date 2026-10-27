@@ -13,7 +13,7 @@ Spring Boot REST API for customer delivery orders, courier dispatch rules, and d
 - Dispatcher/admin courier listing with profile, availability, and stored location details.
 - Optimistic versioning and a PostgreSQL unique index that prevent concurrent double assignment of orders or couriers.
 - PostgreSQL persistence managed by versioned Flyway migrations.
-- Structured validation, authentication, authorization, and domain error responses.
+- Structured request-parsing, validation, authentication, authorization, and domain error responses.
 - PostgreSQL-backed integration tests using Testcontainers.
 - OpenAPI operation and JWT bearer documentation.
 
@@ -232,6 +232,25 @@ curl -s "http://localhost:8080/api/v1/orders/$NEW_ORDER_ID/timeline" \
 ```
 
 The new order now has the complete created, assigned, picked-up, and delivered event sequence.
+
+## Request Errors
+
+Request parsing and validation failures return `400` with the existing `code` and `message` JSON fields:
+
+```json
+{
+  "code": "INVALID_REQUEST_PARAMETER",
+  "message": "Request parameter is missing or invalid"
+}
+```
+
+- `MALFORMED_REQUEST`: a required body is missing, JSON is malformed, or a body value cannot be deserialized (including an unknown enum value). Message: `Request body is missing or malformed`.
+- `INVALID_REQUEST_PARAMETER`: a declared path/query parameter cannot be converted, or a required query parameter is missing. Message: `Request parameter is missing or invalid`.
+- `VALIDATION_FAILED`: DTO fields or declared controller parameter constraints fail validation. Message: `Request validation failed`.
+
+For example, an authenticated customer's `GET /api/v1/orders/abc` returns `400 INVALID_REQUEST_PARAMETER`; a valid numeric ID for a missing or unowned order still returns `404 ORDER_NOT_FOUND`. These parsing/validation responses do not echo rejected values or expose parser details. Field-level validation details are planned separately. Query validation is covered by MVC fixtures; list pagination and filtering are not shipped yet.
+
+Existing domain error codes, authentication failures (`401`), role restrictions (`403`), and business conflicts (`409`) are unchanged. Controller return-value validation remains a server error (`500`), not a client error.
 
 ## Assignment Conflicts
 

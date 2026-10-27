@@ -44,7 +44,7 @@ public class AuthController {
 			@ApiResponse(responseCode = "201", description = "Customer account created"),
 			@ApiResponse(
 					responseCode = "400",
-					description = "Request validation failed",
+					description = "MALFORMED_REQUEST for unreadable JSON, or VALIDATION_FAILED for invalid fields",
 					content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
 			@ApiResponse(
 					responseCode = "409",
@@ -67,7 +67,8 @@ public class AuthController {
 			@ApiResponse(responseCode = "201", description = "Managed user account created"),
 			@ApiResponse(
 					responseCode = "400",
-					description = "Request validation failed or role is unsupported",
+					description = "MALFORMED_REQUEST for unreadable JSON or an unknown role value; "
+							+ "VALIDATION_FAILED for invalid fields; INVALID_MANAGED_USER_ROLE for an unsupported role",
 					content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
 			@ApiResponse(
 					responseCode = "401",
@@ -95,7 +96,7 @@ public class AuthController {
 			@ApiResponse(responseCode = "200", description = "Credentials accepted and JWT issued"),
 			@ApiResponse(
 					responseCode = "400",
-					description = "Request validation failed",
+					description = "MALFORMED_REQUEST for unreadable JSON, or VALIDATION_FAILED for invalid fields",
 					content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
 			@ApiResponse(
 					responseCode = "401",
