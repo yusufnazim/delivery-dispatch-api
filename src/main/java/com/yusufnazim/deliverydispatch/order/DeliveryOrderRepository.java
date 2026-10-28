@@ -1,7 +1,6 @@
 package com.yusufnazim.deliverydispatch.order;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +20,10 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
     boolean existsByCustomerId(Long customerId);
 
     @EntityGraph(attributePaths = {"customer", "courier"})
-    List<DeliveryOrder> findAllByOrderByCreatedAtDescIdDesc();
+    Page<DeliveryOrder> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"customer", "courier"})
+    Page<DeliveryOrder> findByStatusOrderByCreatedAtDescIdDesc(OrderStatus status, Pageable pageable);
 
     boolean existsByCourierIdAndStatusIn(Long courierId, Collection<OrderStatus> statuses);
 }

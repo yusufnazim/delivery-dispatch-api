@@ -65,16 +65,17 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Dispatcher/admin auto-assignment endpoint that returns the selected courier and delegates to the transactional nearest-courier dispatch service.
 - Dispatcher/admin manual-assignment endpoint with validated courier selection and existing eligibility/conflict rules.
 - Dispatcher/admin operational order listing with customer, courier, route, status, and timestamp details.
+- Bounded operational order pagination with optional status filtering, stable timestamp/id ordering, and matching totals in the shared page response.
+- Service, MVC, OpenAPI, and PostgreSQL checks for all status filters, role restrictions, page bounds and empty results, plus bounded entity loading and N+1-safe customer/courier mapping.
 - Dispatcher/admin courier listing with profile, availability, and stored location details.
 - Full local delivery walkthrough from order creation through auto-assignment, pickup, delivery, and timeline review.
 
 ## Remaining
 
-The current plan has 7 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
+The current plan has 6 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
 
 ### API Usability
 
-- Add bounded dispatcher/admin order pagination and status filtering while preserving N+1-safe fetching.
 - Add bounded dispatcher/admin courier pagination and availability filtering.
 
 ### Verification And CI

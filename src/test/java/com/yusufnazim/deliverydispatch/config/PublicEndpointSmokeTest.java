@@ -83,6 +83,8 @@ class PublicEndpointSmokeTest {
 	@CsvSource({
 			"get,/api/v1/orders,INVALID_REQUEST_PARAMETER",
 			"get,/api/v1/orders,VALIDATION_FAILED",
+			"get,/api/v1/dispatch/orders,INVALID_REQUEST_PARAMETER",
+			"get,/api/v1/dispatch/orders,VALIDATION_FAILED",
 			"get,/api/v1/orders/{orderId},INVALID_REQUEST_PARAMETER",
 			"delete,/api/v1/orders/{orderId},INVALID_REQUEST_PARAMETER",
 			"get,/api/v1/orders/{orderId}/timeline,INVALID_REQUEST_PARAMETER",
@@ -108,33 +110,58 @@ class PublicEndpointSmokeTest {
 						.value("#/components/schemas/ApiErrorResponse"));
 	}
 
-	@Test
-	void openApiDocumentsCustomerOrderPagination() throws Exception {
+	@ParameterizedTest
+	@CsvSource({
+			"/api/v1/orders,PageResponseDeliveryOrderResponse,DeliveryOrderResponse",
+			"/api/v1/dispatch/orders,PageResponseOperationalOrderResponse,OperationalOrderResponse"
+	})
+	void openApiDocumentsOrderPagination(String path, String pageSchema, String itemSchema) throws Exception {
+		String operationPath = "$.paths['" + path + "'].get";
+		String schemaPath = "$.components.schemas." + pageSchema;
+
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'page')].schema.default")
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'page')].schema.default")
 						.value(hasItems(0)))
-				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'page')].schema.minimum")
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'page')].schema.minimum")
 						.value(hasItems(0)))
-				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'page')].schema.maximum")
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'page')].schema.maximum")
 						.value(hasItems(21474836)))
-				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'size')].schema.default")
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'size')].schema.default")
 						.value(hasItems(20)))
-				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'size')].schema.minimum")
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'size')].schema.minimum")
 						.value(hasItems(1)))
-				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[?(@.name == 'size')].schema.maximum")
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'size')].schema.maximum")
 						.value(hasItems(100)))
-				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.parameters[*].required")
+				.andExpect(jsonPath(operationPath + ".parameters[*].required")
 						.value(everyItem(is(false))))
-				.andExpect(jsonPath("$.paths['/api/v1/orders'].get.responses['200'].content['*/*'].schema['$ref']")
-						.value("#/components/schemas/PageResponseDeliveryOrderResponse"))
-				.andExpect(jsonPath("$.components.schemas.PageResponseDeliveryOrderResponse.required")
+				.andExpect(jsonPath(operationPath + ".responses['200'].content['*/*'].schema['$ref']")
+						.value("#/components/schemas/" + pageSchema))
+				.andExpect(jsonPath(schemaPath + ".required")
 						.value(hasItems("items", "page", "size", "totalElements", "totalPages")))
-				.andExpect(jsonPath("$.components.schemas.PageResponseDeliveryOrderResponse.properties.items.items['$ref']")
-						.value("#/components/schemas/DeliveryOrderResponse"))
-				.andExpect(jsonPath("$.components.schemas.PageResponseDeliveryOrderResponse.properties.totalElements.format")
+				.andExpect(jsonPath(schemaPath + ".properties.items.items['$ref']")
+						.value("#/components/schemas/" + itemSchema))
+				.andExpect(jsonPath(schemaPath + ".properties.totalElements.format")
 						.value("int64"))
-				.andExpect(jsonPath("$.components.schemas.PageResponseDeliveryOrderResponse.properties.pageable").doesNotExist());
+				.andExpect(jsonPath(schemaPath + ".properties.pageable").doesNotExist());
+	}
+
+	@Test
+	void openApiDocumentsOperationalOrderStatusFilterAndAccess() throws Exception {
+		String operationPath = "$.paths['/api/v1/dispatch/orders'].get";
+
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'status')].schema.type")
+						.value(hasItems("string")))
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'status')].schema.enum[*]")
+						.value(hasItems("PENDING", "ASSIGNED", "PICKED_UP", "DELIVERED", "CANCELLED")))
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'status')].description")
+						.value(hasItems(containsString("omitted or empty means all statuses"))))
+				.andExpect(jsonPath(operationPath + ".security[0].bearerAuth").isArray())
+				.andExpect(jsonPath(operationPath + ".responses['401']").exists())
+				.andExpect(jsonPath(operationPath + ".responses['403'].description")
+						.value(containsString("dispatcher or administrator")));
 	}
 
 	@Test

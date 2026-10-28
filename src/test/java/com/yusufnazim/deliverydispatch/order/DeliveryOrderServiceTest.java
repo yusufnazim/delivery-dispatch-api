@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -187,10 +189,12 @@ class DeliveryOrderServiceTest {
         when(assignedOrder.getCourier()).thenReturn(courier);
         DeliveryOrder pendingOrder = order(11L, OrderStatus.PENDING, "Pickup A");
         when(pendingOrder.getCustomer()).thenReturn(customer);
-        when(deliveryOrderRepository.findAllByOrderByCreatedAtDescIdDesc())
-                .thenReturn(List.of(assignedOrder, pendingOrder));
+        PageRequest request = PageRequest.of(1, 2);
+        when(deliveryOrderRepository.findAllByOrderByCreatedAtDescIdDesc(request))
+                .thenReturn(new PageImpl<>(List.of(assignedOrder, pendingOrder), request, 5));
 
-        List<OperationalOrderResponse> responses = deliveryOrderService.listOperationalOrders();
+        PageResponse<OperationalOrderResponse> page = deliveryOrderService.listOperationalOrders(null, 1, 2);
+        List<OperationalOrderResponse> responses = page.items();
 
         assertThat(responses)
                 .extracting(OperationalOrderResponse::id)
@@ -201,6 +205,61 @@ class DeliveryOrderServiceTest {
         assertThat(responses.getFirst().courierEmail()).isEqualTo("courier@example.com");
         assertThat(responses.getFirst().courierDisplayName()).isEqualTo("Ayse Courier");
         assertThat(responses.getLast().courierId()).isNull();
+        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.size()).isEqualTo(2);
+        assertThat(page.totalElements()).isEqualTo(5);
+        assertThat(page.totalPages()).isEqualTo(3);
+        verify(deliveryOrderRepository).findAllByOrderByCreatedAtDescIdDesc(request);
+        verify(deliveryOrderRepository, never()).findByStatusOrderByCreatedAtDescIdDesc(any(), any());
+        verifyNoInteractions(userRepository, deliveryTimelineService);
+    }
+
+    @ParameterizedTest
+    @EnumSource(OrderStatus.class)
+    void listOperationalOrdersPassesEachStatusAndPageToTheDatabase(OrderStatus status) {
+        User customer = org.mockito.Mockito.mock(User.class);
+        when(customer.getId()).thenReturn(3L);
+        when(customer.getEmail()).thenReturn("customer@example.com");
+        DeliveryOrder order = order(12L, status, "Filtered pickup");
+        when(order.getCustomer()).thenReturn(customer);
+        PageRequest request = PageRequest.of(2, 2);
+        when(deliveryOrderRepository.findByStatusOrderByCreatedAtDescIdDesc(status, request))
+                .thenReturn(new PageImpl<>(List.of(order), request, 5));
+
+        PageResponse<OperationalOrderResponse> response = deliveryOrderService.listOperationalOrders(status, 2, 2);
+
+        assertThat(response.items()).extracting(OperationalOrderResponse::id).containsExactly(12L);
+        assertThat(response.items().getFirst().status()).isEqualTo(status);
+        assertThat(response.items().getFirst().customerEmail()).isEqualTo("customer@example.com");
+        assertThat(response.page()).isEqualTo(2);
+        assertThat(response.size()).isEqualTo(2);
+        assertThat(response.totalElements()).isEqualTo(5);
+        assertThat(response.totalPages()).isEqualTo(3);
+        verify(deliveryOrderRepository).findByStatusOrderByCreatedAtDescIdDesc(status, request);
+        verify(deliveryOrderRepository, never()).findAllByOrderByCreatedAtDescIdDesc(any());
+        verifyNoInteractions(userRepository, deliveryTimelineService);
+    }
+
+    @Test
+    void listOperationalOrdersPreservesFilteredTotalsForBeyondLastPage() {
+        PageRequest request = PageRequest.of(3, 2);
+        when(deliveryOrderRepository.findByStatusOrderByCreatedAtDescIdDesc(OrderStatus.PENDING, request))
+                .thenReturn(new PageImpl<>(List.of(), request, 5));
+
+        PageResponse<OperationalOrderResponse> response = deliveryOrderService.listOperationalOrders(OrderStatus.PENDING, 3, 2);
+
+        assertThat(response).isEqualTo(new PageResponse<>(List.of(), 3, 2, 5, 3));
+    }
+
+    @Test
+    void listOperationalOrdersReturnsZeroTotalsWhenNoOrdersMatch() {
+        PageRequest request = PageRequest.of(0, 20);
+        when(deliveryOrderRepository.findByStatusOrderByCreatedAtDescIdDesc(OrderStatus.DELIVERED, request))
+                .thenReturn(Page.empty(request));
+
+        PageResponse<OperationalOrderResponse> response = deliveryOrderService.listOperationalOrders(OrderStatus.DELIVERED, 0, 20);
+
+        assertThat(response).isEqualTo(new PageResponse<>(List.of(), 0, 20, 0, 0));
     }
 
     @Test

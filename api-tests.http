@@ -103,8 +103,29 @@ Content-Type: application/json
 POST {{baseUrl}}/api/v1/dispatch/orders/1/auto-assign
 Authorization: Bearer {{dispatcherToken}}
 
-### List operational orders
+### List operational orders with defaults: all statuses, page 0, size 20
+# DISPATCHER or ADMIN only. Response is now {items, page, size, totalElements, totalPages}, not an array.
+# Items include customer/courier details across all customers, ordered by createdAt DESC, id DESC.
 GET {{baseUrl}}/api/v1/dispatch/orders
+Authorization: Bearer {{dispatcherToken}}
+
+### Filter operational orders by status and page
+# Optional status: PENDING, ASSIGNED, PICKED_UP, DELIVERED, CANCELLED; omitted or empty means all.
+# page is zero-based (0..21474836); size is 1..100. Totals count matching orders only.
+GET {{baseUrl}}/api/v1/dispatch/orders?status=PENDING&page=0&size=10
+Authorization: Bearer {{dispatcherToken}}
+
+### Request the next matching page
+# Empty or beyond-last pages return 200 with items: [] and matching totals.
+GET {{baseUrl}}/api/v1/dispatch/orders?status=PENDING&page=1&size=10
+Authorization: Bearer {{dispatcherToken}}
+
+### Unknown operational status: 400 INVALID_REQUEST_PARAMETER with details: []
+GET {{baseUrl}}/api/v1/dispatch/orders?status=UNKNOWN
+Authorization: Bearer {{dispatcherToken}}
+
+### Invalid operational page bounds: 400 VALIDATION_FAILED with page and size details
+GET {{baseUrl}}/api/v1/dispatch/orders?page=-1&size=101
 Authorization: Bearer {{dispatcherToken}}
 
 ### List operational couriers

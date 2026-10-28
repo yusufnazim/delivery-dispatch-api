@@ -10,7 +10,7 @@ Spring Boot REST API for customer delivery orders, courier dispatch rules, and d
 - Courier availability, location, current assignment, pickup, and delivery endpoints.
 - Nearest-courier selection using Haversine distance and stored coordinates.
 - Dispatcher/admin endpoints for automatic and manual courier assignment.
-- Dispatcher/admin operational order listing with customer and courier assignment details.
+- Dispatcher/admin operational order pagination and status filtering with customer and courier assignment details.
 - Dispatcher/admin courier listing with profile, availability, and stored location details.
 - Optimistic versioning and a PostgreSQL unique index that prevent concurrent double assignment of orders or couriers.
 - PostgreSQL persistence managed by versioned Flyway migrations.
@@ -184,7 +184,7 @@ curl -s http://localhost:8080/api/v1/dispatch/orders \
   -H "Authorization: Bearer $DISPATCHER_TOKEN"
 ```
 
-The courier response shows profile, availability, and location data. The order response shows the new pending order alongside its customer, route, and current assignment details.
+The courier response is an array with profile, availability, and location data. The order response is a page object; its `items` include the new pending order with customer, route, and current assignment details. Use `?status=PENDING` to show only pending orders.
 
 7. Auto-assign the nearest eligible courier, then inspect the updated order:
 
@@ -197,7 +197,7 @@ curl -s http://localhost:8080/api/v1/dispatch/orders \
   -H "Authorization: Bearer $DISPATCHER_TOKEN"
 ```
 
-The assignment response identifies the selected courier, and the operational order view now shows the order as `ASSIGNED`. With the seeded locations and the location update above, `courier.one@delivery.local` is selected.
+The assignment response identifies the selected courier, and the operational order page's `items` now show the order as `ASSIGNED`. With the seeded locations and the location update above, `courier.one@delivery.local` is selected.
 
 8. Discover the current assignment as the courier:
 
@@ -250,7 +250,26 @@ curl -s "http://localhost:8080/api/v1/orders?page=1&size=10" \
   -H "Authorization: Bearer $CUSTOMER_TOKEN"
 ```
 
-Out-of-range values return `400 VALIDATION_FAILED` with field details; non-integer values return `400 INVALID_REQUEST_PARAMETER`. Pages are not a snapshot across requests: new orders can shift later pages. Dispatcher/admin order and courier lists remain arrays; their pagination and filtering are planned separately.
+Out-of-range values return `400 VALIDATION_FAILED` with field details; non-integer values return `400 INVALID_REQUEST_PARAMETER`. Pages are not a snapshot across requests: new orders can shift later pages.
+
+## Operational Order Pagination
+
+`GET /api/v1/dispatch/orders` requires `DISPATCHER` or `ADMIN` and lists orders across all customers. It now returns the same `items`, `page`, `size`, `totalElements`, and `totalPages` page shape instead of the previous array. This is an intentional pre-release response change; read order details from `items`.
+
+- Optional `page` and `size` have the same defaults and limits as customer order history: page `0..21474836` (default `0`), size `1..100` (default `20`).
+- Optional `status` accepts `PENDING`, `ASSIGNED`, `PICKED_UP`, `DELIVERED`, or `CANCELLED`. Omitted or empty means all statuses; unknown or lowercase values return `400 INVALID_REQUEST_PARAMETER`.
+- Filtering and pagination run in PostgreSQL. Totals count only matching orders, and ordering stays `createdAt DESC, id DESC`.
+- Empty and beyond-last pages return `200` with `items: []` and matching totals. No matches means both totals are zero. Concurrent creations or status changes can shift later pages.
+- Customer and courier details are fetched together; unassigned orders retain null courier fields. Missing authentication returns `401`; customer/courier roles receive `403`.
+
+For example, request the first ten pending orders:
+
+```bash
+curl -s "http://localhost:8080/api/v1/dispatch/orders?status=PENDING&page=0&size=10" \
+  -H "Authorization: Bearer $DISPATCHER_TOKEN"
+```
+
+The operational courier list remains an array; its pagination and availability filtering are planned separately.
 
 ## Request Errors
 
@@ -343,6 +362,8 @@ Courier state tests also overlap availability/location writes with assignment an
 Current-assignment tests cover role access, JWT-derived ownership, persisted active orders, idle results, and completed-history exclusion with Open Session in View disabled.
 
 Customer pagination tests cover parameter defaults and bounds, ownership-filtered counts, timestamp/id ordering, empty and beyond-last pages, and bounded PostgreSQL entity loading.
+
+Operational order tests cover every status, access rules, matching page totals, stable ordering, and maximum offsets. PostgreSQL checks load only the requested orders and map customer/courier details after detaching entities, with two statements (page plus count) for the tested full pages and no per-order queries.
 
 ## Database Operations
 

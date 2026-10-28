@@ -9,8 +9,8 @@ import com.yusufnazim.deliverydispatch.order.exception.OrderNotFoundException;
 import com.yusufnazim.deliverydispatch.timeline.DeliveryTimelineService;
 import com.yusufnazim.deliverydispatch.user.User;
 import com.yusufnazim.deliverydispatch.user.UserRepository;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,10 +59,12 @@ public class DeliveryOrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<OperationalOrderResponse> listOperationalOrders() {
-        return deliveryOrderRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
-                .map(OperationalOrderResponse::from)
-                .toList();
+    public PageResponse<OperationalOrderResponse> listOperationalOrders(OrderStatus status, int page, int size) {
+        PageRequest request = PageRequest.of(page, size);
+        Page<DeliveryOrder> orders = status == null
+                ? deliveryOrderRepository.findAllByOrderByCreatedAtDescIdDesc(request)
+                : deliveryOrderRepository.findByStatusOrderByCreatedAtDescIdDesc(status, request);
+        return PageResponse.from(orders.map(OperationalOrderResponse::from));
     }
 
     @Transactional
