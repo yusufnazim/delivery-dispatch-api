@@ -85,6 +85,8 @@ class PublicEndpointSmokeTest {
 			"get,/api/v1/orders,VALIDATION_FAILED",
 			"get,/api/v1/dispatch/orders,INVALID_REQUEST_PARAMETER",
 			"get,/api/v1/dispatch/orders,VALIDATION_FAILED",
+			"get,/api/v1/dispatch/couriers,INVALID_REQUEST_PARAMETER",
+			"get,/api/v1/dispatch/couriers,VALIDATION_FAILED",
 			"get,/api/v1/orders/{orderId},INVALID_REQUEST_PARAMETER",
 			"delete,/api/v1/orders/{orderId},INVALID_REQUEST_PARAMETER",
 			"get,/api/v1/orders/{orderId}/timeline,INVALID_REQUEST_PARAMETER",
@@ -113,9 +115,10 @@ class PublicEndpointSmokeTest {
 	@ParameterizedTest
 	@CsvSource({
 			"/api/v1/orders,PageResponseDeliveryOrderResponse,DeliveryOrderResponse",
-			"/api/v1/dispatch/orders,PageResponseOperationalOrderResponse,OperationalOrderResponse"
+			"/api/v1/dispatch/orders,PageResponseOperationalOrderResponse,OperationalOrderResponse",
+			"/api/v1/dispatch/couriers,PageResponseOperationalCourierResponse,OperationalCourierResponse"
 	})
-	void openApiDocumentsOrderPagination(String path, String pageSchema, String itemSchema) throws Exception {
+	void openApiDocumentsListPagination(String path, String pageSchema, String itemSchema) throws Exception {
 		String operationPath = "$.paths['" + path + "'].get";
 		String schemaPath = "$.components.schemas." + pageSchema;
 
@@ -158,6 +161,24 @@ class PublicEndpointSmokeTest {
 						.value(hasItems("PENDING", "ASSIGNED", "PICKED_UP", "DELIVERED", "CANCELLED")))
 				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'status')].description")
 						.value(hasItems(containsString("omitted or empty means all statuses"))))
+				.andExpect(jsonPath(operationPath + ".security[0].bearerAuth").isArray())
+				.andExpect(jsonPath(operationPath + ".responses['401']").exists())
+				.andExpect(jsonPath(operationPath + ".responses['403'].description")
+						.value(containsString("dispatcher or administrator")));
+	}
+
+	@Test
+	void openApiDocumentsOperationalCourierAvailabilityFilterAndAccess() throws Exception {
+		String operationPath = "$.paths['/api/v1/dispatch/couriers'].get";
+
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'availability')].schema.type")
+						.value(hasItems("string")))
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'availability')].schema.enum[*]")
+						.value(hasItems("AVAILABLE", "UNAVAILABLE", "ON_DELIVERY")))
+				.andExpect(jsonPath(operationPath + ".parameters[?(@.name == 'availability')].description")
+						.value(hasItems(containsString("omitted or empty means all availability states"))))
 				.andExpect(jsonPath(operationPath + ".security[0].bearerAuth").isArray())
 				.andExpect(jsonPath(operationPath + ".responses['401']").exists())
 				.andExpect(jsonPath(operationPath + ".responses['403'].description")

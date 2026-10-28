@@ -3,16 +3,26 @@ package com.yusufnazim.deliverydispatch.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.yusufnazim.deliverydispatch.courier.dto.OperationalCourierResponse;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -23,7 +33,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @DataJpaTest(properties = {
         "spring.autoconfigure.exclude=",
         "spring.flyway.enabled=true",
-        "spring.jpa.hibernate.ddl-auto=validate"
+        "spring.jpa.hibernate.ddl-auto=validate",
+        "spring.jpa.properties.hibernate.generate_statistics=true",
+        "spring.jpa.properties.hibernate.session.events.log=false"
 })
 @Testcontainers(disabledWithoutDocker = true)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -141,18 +153,156 @@ class UserRepositoryTest {
     }
 
     @Test
-    void findsAllCouriersOrderedById() {
+    void courierPagesKeepIdOrderAndRoleFilteredTotalsAcrossExactBoundaries() {
         User firstCourier = new User("first-courier@example.com", "hashed-password", Role.COURIER);
-        User customer = new User("listing-customer@example.com", "hashed-password", Role.CUSTOMER);
+        firstCourier.updateCourierAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+        userRepository.saveAndFlush(firstCourier);
+        saveNonCourierUsers();
         User secondCourier = new User("second-courier@example.com", "hashed-password", Role.COURIER);
-        userRepository.saveAllAndFlush(List.of(firstCourier, customer, secondCourier));
+        userRepository.saveAndFlush(secondCourier);
         entityManager.clear();
 
-        List<User> couriers = userRepository.findByRoleOrderByIdAsc(Role.COURIER);
+        Page<User> first = userRepository.findByRoleOrderByIdAsc(Role.COURIER, PageRequest.of(0, 1));
+        Page<User> last = userRepository.findByRoleOrderByIdAsc(Role.COURIER, PageRequest.of(1, 1));
+        Page<User> beyondLast = userRepository.findByRoleOrderByIdAsc(Role.COURIER, PageRequest.of(2, 1));
 
-        assertThat(couriers)
-                .extracting(User::getEmail)
-                .containsExactly("first-courier@example.com", "second-courier@example.com");
+        assertThat(first.getContent()).extracting(User::getId).containsExactly(firstCourier.getId());
+        assertThat(last.getContent()).extracting(User::getId).containsExactly(secondCourier.getId());
+        assertThat(beyondLast.getContent()).isEmpty();
+        for (Page<User> page : List.of(first, last, beyondLast)) {
+            assertThat(page.getTotalElements()).isEqualTo(2);
+            assertThat(page.getTotalPages()).isEqualTo(2);
+            assertThat(page.getContent()).allSatisfy(user -> assertThat(user.getRole()).isEqualTo(Role.COURIER));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(CourierAvailabilityStatus.class)
+    void courierAvailabilityPagesUseMatchingTotalsAndIdOrdering(CourierAvailabilityStatus availability) {
+        User first = saveCourier("first", availability);
+        saveNonCourierUsers();
+        saveCourier("other", availability == CourierAvailabilityStatus.AVAILABLE
+                ? CourierAvailabilityStatus.UNAVAILABLE : CourierAvailabilityStatus.AVAILABLE);
+        User second = saveCourier("second", availability);
+        User third = saveCourier("third", availability);
+        entityManager.clear();
+
+        Page<User> firstPage = userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(
+                Role.COURIER, availability, PageRequest.of(0, 2));
+        Page<User> lastPage = userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(
+                Role.COURIER, availability, PageRequest.of(1, 2));
+        Page<User> beyondLast = userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(
+                Role.COURIER, availability, PageRequest.of(2, 2));
+
+        assertThat(firstPage.getContent()).extracting(User::getId).containsExactly(first.getId(), second.getId());
+        assertThat(lastPage.getContent()).extracting(User::getId).containsExactly(third.getId());
+        assertThat(beyondLast.getContent()).isEmpty();
+        for (Page<User> page : List.of(firstPage, lastPage, beyondLast)) {
+            assertThat(page.getTotalElements()).isEqualTo(3);
+            assertThat(page.getTotalPages()).isEqualTo(2);
+            assertThat(page.getContent()).allSatisfy(user -> {
+                assertThat(user.getRole()).isEqualTo(Role.COURIER);
+                assertThat(user.getCourierAvailabilityStatus()).isEqualTo(availability);
+            });
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false,1", "false,2", "true,1", "true,2"})
+    void courierPagesLoadOnlyRequestedEntitiesAndMapWithoutExtraQueries(boolean filtered, int size) {
+        User first = saveCourier("first", CourierAvailabilityStatus.AVAILABLE);
+        first.updateCourierProfile("Ayse Courier", "+905551112233", CourierVehicleType.MOTORBIKE);
+        first.updateCourierLocation(new BigDecimal("41.008200"), new BigDecimal("28.978400"));
+        User second = saveCourier("second", CourierAvailabilityStatus.AVAILABLE);
+        saveCourier("third", CourierAvailabilityStatus.AVAILABLE);
+        saveCourier("unavailable", CourierAvailabilityStatus.UNAVAILABLE);
+        saveNonCourierUsers();
+        userRepository.flush();
+        entityManager.refresh(first);
+        entityManager.refresh(second);
+        OperationalCourierResponse expectedFirst = OperationalCourierResponse.from(first);
+        OperationalCourierResponse expectedSecond = OperationalCourierResponse.from(second);
+        entityManager.clear();
+        Statistics statistics = entityManager.getEntityManager().getEntityManagerFactory()
+                .unwrap(SessionFactory.class).getStatistics();
+        statistics.clear();
+
+        PageRequest request = PageRequest.of(0, size);
+        Page<User> page = filtered
+                ? userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(
+                        Role.COURIER, CourierAvailabilityStatus.AVAILABLE, request)
+                : userRepository.findByRoleOrderByIdAsc(Role.COURIER, request);
+
+        assertThat(statistics.getEntityLoadCount()).isEqualTo(size);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+        entityManager.clear();
+        List<OperationalCourierResponse> responses = page.map(OperationalCourierResponse::from).getContent();
+        assertThat(responses).containsExactlyElementsOf(size == 1
+                ? List.of(expectedFirst) : List.of(expectedFirst, expectedSecond));
+        assertThat(page.getTotalElements()).isEqualTo(filtered ? 3 : 4);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1})
+    void courierPagesHandleEmptyDatabaseAndUnmatchedAvailability(int pageNumber) {
+        PageRequest request = PageRequest.of(pageNumber, 20);
+        Page<User> emptyDatabase = userRepository.findByRoleOrderByIdAsc(Role.COURIER, request);
+        Page<User> emptyFilteredDatabase = userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(
+                Role.COURIER, CourierAvailabilityStatus.ON_DELIVERY, request);
+        saveNonCourierUsers();
+        Page<User> noCouriers = userRepository.findByRoleOrderByIdAsc(Role.COURIER, request);
+        saveCourier("available", CourierAvailabilityStatus.AVAILABLE);
+        Page<User> noMatches = userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(
+                Role.COURIER, CourierAvailabilityStatus.ON_DELIVERY, request);
+
+        for (Page<User> page : List.of(emptyDatabase, emptyFilteredDatabase, noCouriers, noMatches)) {
+            assertThat(page.getContent()).isEmpty();
+            assertThat(page.getTotalElements()).isZero();
+            assertThat(page.getTotalPages()).isZero();
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void courierPagesAcceptMaximumSupportedOffsetWithCorrectTotals(boolean filtered) {
+        saveCourier("available", CourierAvailabilityStatus.AVAILABLE);
+        saveCourier("unavailable", CourierAvailabilityStatus.UNAVAILABLE);
+        saveNonCourierUsers();
+        entityManager.clear();
+        PageRequest request = PageRequest.of(Integer.MAX_VALUE / 100, 100);
+
+        Page<User> page = filtered
+                ? userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(
+                        Role.COURIER, CourierAvailabilityStatus.AVAILABLE, request)
+                : userRepository.findByRoleOrderByIdAsc(Role.COURIER, request);
+
+        assertThat(page.getContent()).isEmpty();
+        assertThat(page.getNumber()).isEqualTo(Integer.MAX_VALUE / 100);
+        assertThat(page.getSize()).isEqualTo(100);
+        assertThat(page.getTotalElements()).isEqualTo(filtered ? 1 : 2);
+        assertThat(page.getTotalPages()).isEqualTo(1);
+    }
+
+    @Test
+    void eligibleCourierLookupRemainsUnpagedBeyondDefaultOperationalPage() {
+        List<Long> courierIds = new ArrayList<>();
+        for (int i = 0; i < 21; i++) {
+            User courier = saveCourier("eligible-" + i, CourierAvailabilityStatus.AVAILABLE);
+            courier.updateCourierLocation(new BigDecimal("41.008200"), new BigDecimal("28.978400"));
+            courierIds.add(courier.getId());
+        }
+        userRepository.flush();
+        entityManager.clear();
+
+        Page<User> firstPage = userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(
+                Role.COURIER, CourierAvailabilityStatus.AVAILABLE, PageRequest.of(0, 20));
+        List<User> eligible = userRepository.findEligibleCouriersForDispatch(
+                Role.COURIER, CourierAvailabilityStatus.AVAILABLE, List.of(OrderStatus.ASSIGNED, OrderStatus.PICKED_UP));
+
+        assertThat(firstPage.getContent()).hasSize(20);
+        assertThat(firstPage.getTotalElements()).isEqualTo(21);
+        assertThat(eligible).extracting(User::getId).containsExactlyElementsOf(courierIds);
     }
 
     @Test
@@ -189,6 +339,19 @@ class UserRepositoryTest {
 
         assertThat(updatedRows).isEqualTo(1);
         assertThatThrownBy(userRepository::flush).isInstanceOf(ObjectOptimisticLockingFailureException.class);
+    }
+
+    private User saveCourier(String name, CourierAvailabilityStatus availability) {
+        User courier = new User(name + "@example.com", "hash", Role.COURIER);
+        courier.updateCourierAvailabilityStatus(availability);
+        return userRepository.saveAndFlush(courier);
+    }
+
+    private void saveNonCourierUsers() {
+        userRepository.saveAllAndFlush(List.of(
+                new User("customer-list@example.com", "hash", Role.CUSTOMER),
+                new User("dispatcher-list@example.com", "hash", Role.DISPATCHER),
+                new User("admin-list@example.com", "hash", Role.ADMIN)));
     }
 
     private DeliveryOrder orderFor(User customer) {

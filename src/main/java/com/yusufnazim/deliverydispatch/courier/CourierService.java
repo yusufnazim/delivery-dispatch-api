@@ -7,6 +7,7 @@ import com.yusufnazim.deliverydispatch.courier.exception.CourierAvailabilityChan
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierUpdateConflictException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
+import com.yusufnazim.deliverydispatch.dto.PageResponse;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
@@ -21,6 +22,8 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,10 +46,13 @@ public class CourierService {
     }
 
     @Transactional(readOnly = true)
-    public List<OperationalCourierResponse> listOperationalCouriers() {
-        return userRepository.findByRoleOrderByIdAsc(Role.COURIER).stream()
-                .map(OperationalCourierResponse::from)
-                .toList();
+    public PageResponse<OperationalCourierResponse> listOperationalCouriers(
+            CourierAvailabilityStatus availability, int page, int size) {
+        PageRequest request = PageRequest.of(page, size);
+        Page<User> couriers = availability == null
+                ? userRepository.findByRoleOrderByIdAsc(Role.COURIER, request)
+                : userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(Role.COURIER, availability, request);
+        return PageResponse.from(couriers.map(OperationalCourierResponse::from));
     }
 
     @Transactional

@@ -11,7 +11,7 @@ Spring Boot REST API for customer delivery orders, courier dispatch rules, and d
 - Nearest-courier selection using Haversine distance and stored coordinates.
 - Dispatcher/admin endpoints for automatic and manual courier assignment.
 - Dispatcher/admin operational order pagination and status filtering with customer and courier assignment details.
-- Dispatcher/admin courier listing with profile, availability, and stored location details.
+- Dispatcher/admin courier pagination and availability filtering with profile and stored location details.
 - Optimistic versioning and a PostgreSQL unique index that prevent concurrent double assignment of orders or couriers.
 - PostgreSQL persistence managed by versioned Flyway migrations.
 - Structured request-parsing, validation, authentication, authorization, and domain error responses.
@@ -184,7 +184,7 @@ curl -s http://localhost:8080/api/v1/dispatch/orders \
   -H "Authorization: Bearer $DISPATCHER_TOKEN"
 ```
 
-The courier response is an array with profile, availability, and location data. The order response is a page object; its `items` include the new pending order with customer, route, and current assignment details. Use `?status=PENDING` to show only pending orders.
+Both responses are page objects. Courier `items` include profile, availability, and location data; order `items` include the new pending order with customer, route, and current assignment details. Use `?availability=AVAILABLE` for the courier list or `?status=PENDING` for the order list to filter results.
 
 7. Auto-assign the nearest eligible courier, then inspect the updated order:
 
@@ -269,7 +269,22 @@ curl -s "http://localhost:8080/api/v1/dispatch/orders?status=PENDING&page=0&size
   -H "Authorization: Bearer $DISPATCHER_TOKEN"
 ```
 
-The operational courier list remains an array; its pagination and availability filtering are planned separately.
+## Operational Courier Pagination
+
+`GET /api/v1/dispatch/couriers` requires `DISPATCHER` or `ADMIN`. It now returns the shared `items`, `page`, `size`, `totalElements`, and `totalPages` page shape instead of an array. This is an intentional pre-release response change; read courier details from `items`.
+
+- Optional `page` is `0..21474836` (default `0`); `size` is `1..100` (default `20`). Out-of-range values return `400 VALIDATION_FAILED` with field details; non-integer values return `400 INVALID_REQUEST_PARAMETER`.
+- Optional `availability` accepts `AVAILABLE`, `UNAVAILABLE`, or `ON_DELIVERY`. Omitted or empty means all availability states; unknown or lowercase values return `400 INVALID_REQUEST_PARAMETER`.
+- PostgreSQL filters and counts only courier users matching the requested availability. Ordering is `id ASC`; empty and beyond-last pages return `200` with empty `items` and matching totals. No matches means both totals are zero.
+- Profile and location fields remain nullable. Missing authentication returns `401`; customer/courier roles receive `403`.
+- The filter uses stored availability, not assignment eligibility. Both assignment paths check availability and active deliveries; automatic assignment also requires a stored location. The internal nearest-courier lookup remains unpaged and considers all eligible couriers.
+
+```bash
+curl -s "http://localhost:8080/api/v1/dispatch/couriers?availability=AVAILABLE&page=0&size=10" \
+  -H "Authorization: Bearer $DISPATCHER_TOKEN"
+```
+
+Pages are not a snapshot across requests: availability changes or new courier accounts can shift later pages.
 
 ## Request Errors
 
@@ -364,6 +379,8 @@ Current-assignment tests cover role access, JWT-derived ownership, persisted act
 Customer pagination tests cover parameter defaults and bounds, ownership-filtered counts, timestamp/id ordering, empty and beyond-last pages, and bounded PostgreSQL entity loading.
 
 Operational order tests cover every status, access rules, matching page totals, stable ordering, and maximum offsets. PostgreSQL checks load only the requested orders and map customer/courier details after detaching entities, with two statements (page plus count) for the tested full pages and no per-order queries.
+
+Operational courier tests cover each availability, courier-only items and totals, stable id ordering, empty/boundary pages, validation, and role access. PostgreSQL checks prove bounded entity loading and confirm that the eligible-courier lookup still returns candidates beyond the first display page.
 
 ## Database Operations
 

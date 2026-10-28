@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.yusufnazim.deliverydispatch.courier.dto.CourierAvailabilityResponse;
@@ -15,6 +16,7 @@ import com.yusufnazim.deliverydispatch.courier.exception.CourierAvailabilityChan
 import com.yusufnazim.deliverydispatch.courier.exception.CourierNotFoundException;
 import com.yusufnazim.deliverydispatch.courier.exception.CourierUpdateConflictException;
 import com.yusufnazim.deliverydispatch.courier.exception.InvalidCourierAvailabilityStatusException;
+import com.yusufnazim.deliverydispatch.dto.PageResponse;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrder;
 import com.yusufnazim.deliverydispatch.order.DeliveryOrderRepository;
 import com.yusufnazim.deliverydispatch.order.OrderStatus;
@@ -34,11 +36,14 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -99,11 +104,13 @@ class CourierServiceTest {
         ReflectionTestUtils.setField(courier, "id", 7L);
         ReflectionTestUtils.setField(courier, "createdAt", Instant.parse("2026-07-17T09:00:00Z"));
         ReflectionTestUtils.setField(courier, "updatedAt", Instant.parse("2026-07-17T09:05:00Z"));
-        when(userRepository.findByRoleOrderByIdAsc(Role.COURIER)).thenReturn(List.of(courier));
+        PageRequest request = PageRequest.of(1, 1);
+        when(userRepository.findByRoleOrderByIdAsc(Role.COURIER, request))
+                .thenReturn(new PageImpl<>(List.of(courier), request, 3));
 
-        List<OperationalCourierResponse> responses = courierService.listOperationalCouriers();
+        PageResponse<OperationalCourierResponse> responses = courierService.listOperationalCouriers(null, 1, 1);
 
-        assertThat(responses).singleElement().satisfies(response -> {
+        assertThat(responses.items()).singleElement().satisfies(response -> {
             assertThat(response.id()).isEqualTo(7L);
             assertThat(response.email()).isEqualTo("courier@example.com");
             assertThat(response.displayName()).isEqualTo("Ayse Courier");
@@ -112,8 +119,59 @@ class CourierServiceTest {
             assertThat(response.availabilityStatus()).isEqualTo(CourierAvailabilityStatus.AVAILABLE);
             assertThat(response.latitude()).isEqualByComparingTo("41.008200");
             assertThat(response.longitude()).isEqualByComparingTo("28.978400");
+            assertThat(response.createdAt()).isEqualTo(Instant.parse("2026-07-17T09:00:00Z"));
+            assertThat(response.updatedAt()).isEqualTo(Instant.parse("2026-07-17T09:05:00Z"));
         });
-        verify(userRepository).findByRoleOrderByIdAsc(Role.COURIER);
+        assertThat(responses.page()).isEqualTo(1);
+        assertThat(responses.size()).isEqualTo(1);
+        assertThat(responses.totalElements()).isEqualTo(3);
+        assertThat(responses.totalPages()).isEqualTo(3);
+        verify(userRepository).findByRoleOrderByIdAsc(Role.COURIER, request);
+        verifyNoMoreInteractions(userRepository);
+        verifyNoInteractions(deliveryOrderRepository, deliveryTimelineService);
+    }
+
+    @ParameterizedTest
+    @EnumSource(CourierAvailabilityStatus.class)
+    void listOperationalCouriersFiltersByEachAvailabilityAndKeepsDatabaseOrder(CourierAvailabilityStatus availability) {
+        User first = new User("first@example.com", "hash", Role.COURIER);
+        User second = new User("second@example.com", "hash", Role.COURIER);
+        first.updateCourierAvailabilityStatus(availability);
+        second.updateCourierAvailabilityStatus(availability);
+        ReflectionTestUtils.setField(first, "id", 7L);
+        ReflectionTestUtils.setField(second, "id", 9L);
+        PageRequest request = PageRequest.of(1, 2);
+        when(userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(Role.COURIER, availability, request))
+                .thenReturn(new PageImpl<>(List.of(first, second), request, 5));
+
+        PageResponse<OperationalCourierResponse> response = courierService.listOperationalCouriers(availability, 1, 2);
+
+        assertThat(response.items()).containsExactly(OperationalCourierResponse.from(first), OperationalCourierResponse.from(second));
+        assertThat(response.page()).isEqualTo(1);
+        assertThat(response.size()).isEqualTo(2);
+        assertThat(response.totalElements()).isEqualTo(5);
+        assertThat(response.totalPages()).isEqualTo(3);
+        verify(userRepository).findByRoleAndCourierAvailabilityStatusOrderByIdAsc(Role.COURIER, availability, request);
+        verifyNoMoreInteractions(userRepository);
+        verifyNoInteractions(deliveryOrderRepository, deliveryTimelineService);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false,0,0", "true,0,0", "false,2,3", "true,2,3"})
+    void listOperationalCouriersPreservesEmptyAndBeyondLastPageTotals(boolean filtered, int page, long total) {
+        PageRequest request = PageRequest.of(page, 2);
+        PageImpl<User> users = new PageImpl<>(List.of(), request, total);
+        CourierAvailabilityStatus availability = filtered ? CourierAvailabilityStatus.AVAILABLE : null;
+        if (filtered) {
+            when(userRepository.findByRoleAndCourierAvailabilityStatusOrderByIdAsc(Role.COURIER, availability, request))
+                    .thenReturn(users);
+        } else {
+            when(userRepository.findByRoleOrderByIdAsc(Role.COURIER, request)).thenReturn(users);
+        }
+
+        assertThat(courierService.listOperationalCouriers(availability, page, 2))
+                .isEqualTo(new PageResponse<>(List.of(), page, 2, total, total == 0 ? 0 : 2));
+        verifyNoInteractions(deliveryOrderRepository, deliveryTimelineService);
     }
 
     @Test

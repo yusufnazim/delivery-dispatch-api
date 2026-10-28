@@ -68,15 +68,13 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Bounded operational order pagination with optional status filtering, stable timestamp/id ordering, and matching totals in the shared page response.
 - Service, MVC, OpenAPI, and PostgreSQL checks for all status filters, role restrictions, page bounds and empty results, plus bounded entity loading and N+1-safe customer/courier mapping.
 - Dispatcher/admin courier listing with profile, availability, and stored location details.
+- Bounded operational courier pagination with optional availability filtering, courier-only totals, and stable id ordering; the nearest-courier candidate lookup remains unpaged.
+- Service, MVC, OpenAPI, and PostgreSQL coverage for availability filters, page boundaries, role isolation, validation, bounded entity loading, and dispatch candidates beyond the first display page.
 - Full local delivery walkthrough from order creation through auto-assignment, pickup, delivery, and timeline review.
 
 ## Remaining
 
-The current plan has 6 remaining focused commits across API usability, verification, and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
-
-### API Usability
-
-- Add bounded dispatcher/admin courier pagination and availability filtering.
+The current plan has 5 remaining focused commits across verification and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
 
 ### Verification And CI
 

@@ -128,8 +128,30 @@ Authorization: Bearer {{dispatcherToken}}
 GET {{baseUrl}}/api/v1/dispatch/orders?page=-1&size=101
 Authorization: Bearer {{dispatcherToken}}
 
-### List operational couriers
+### List operational couriers with defaults: all availability states, page 0, size 20
+# DISPATCHER or ADMIN only. Response is now {items, page, size, totalElements, totalPages}, not an array.
+# Only courier users are included, ordered by id ASC; profile/location fields can be null.
 GET {{baseUrl}}/api/v1/dispatch/couriers
+Authorization: Bearer {{dispatcherToken}}
+
+### Filter operational couriers by availability and page
+# Optional availability: AVAILABLE, UNAVAILABLE, ON_DELIVERY; omitted or empty means all.
+# page is zero-based (0..21474836); size is 1..100. Totals count matching couriers only.
+# AVAILABLE is stored availability, not a guarantee of assignment eligibility.
+GET {{baseUrl}}/api/v1/dispatch/couriers?availability=AVAILABLE&page=0&size=10
+Authorization: Bearer {{dispatcherToken}}
+
+### Request the next matching courier page
+# Empty or beyond-last pages return 200 with items: [] and matching totals.
+GET {{baseUrl}}/api/v1/dispatch/couriers?availability=AVAILABLE&page=1&size=10
+Authorization: Bearer {{dispatcherToken}}
+
+### Unknown availability: 400 INVALID_REQUEST_PARAMETER with details: []
+GET {{baseUrl}}/api/v1/dispatch/couriers?availability=UNKNOWN
+Authorization: Bearer {{dispatcherToken}}
+
+### Invalid courier page bounds: 400 VALIDATION_FAILED with page and size details
+GET {{baseUrl}}/api/v1/dispatch/couriers?page=-1&size=101
 Authorization: Bearer {{dispatcherToken}}
 
 ### Manually assign a courier
