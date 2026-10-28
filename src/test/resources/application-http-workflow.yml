@@ -1,0 +1,16 @@
+spring:
+  autoconfigure:
+    exclude: ""
+  main:
+    # Let real JPA repositories replace the shared lightweight test fallbacks.
+    allow-bean-definition-overriding: true
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+app:
+  demo-data:
+    enabled: false

@@ -370,6 +370,14 @@ Run the full Maven verification lifecycle and build the application jar:
 
 Docker must be available for the PostgreSQL Testcontainers integration tests.
 
+`AuthenticatedDeliveryWorkflowIntegrationTest` uses the full application and MockMvc security filter chain against a fresh Flyway-migrated PostgreSQL container, with `open-in-view: false`. It logs in database users with BCrypt-hashed passwords and sends the returned JWTs as bearer headers; services, repositories, and authentication are not mocked. It covers automatic and manual assignment through courier discovery, pickup, completion, and customer history/timeline retrieval. Independent JDBC reads check committed order state, courier availability, and events. Rejected authentication, role, ownership, and transition requests must leave database state unchanged. The existing service-level workflow tests remain separate.
+
+Run only the authenticated HTTP workflow checks:
+
+```bash
+./mvnw -Dtest=AuthenticatedDeliveryWorkflowIntegrationTest test
+```
+
 Dispatch concurrency tests synchronize two real transactions and verify manual/manual, automatic/automatic, mixed assignment, same-order conflicts, rollback, and courier reuse after delivery.
 
 Courier state tests also overlap availability/location writes with assignment and completion, verify both winning and losing transactions, and check persisted state and timeline rollback.
