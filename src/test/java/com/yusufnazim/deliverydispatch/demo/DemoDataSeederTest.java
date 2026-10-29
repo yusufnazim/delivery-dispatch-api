@@ -38,7 +38,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 })
 @ActiveProfiles("local")
 @Import({DemoDataSeeder.class, DeliveryTimelineService.class, DemoDataSeederTest.PasswordEncoderConfig.class})
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class DemoDataSeederTest {
 

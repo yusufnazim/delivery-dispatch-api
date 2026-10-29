@@ -37,7 +37,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "spring.jpa.properties.hibernate.generate_statistics=true",
         "spring.jpa.properties.hibernate.session.events.log=false"
 })
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class UserRepositoryTest {
 

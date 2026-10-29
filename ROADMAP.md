@@ -46,6 +46,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - PostgreSQL-backed integration coverage for the customer delivery workflow from order creation through delivery.
 - Full-context MockMvc workflow coverage with real login JWTs, Spring Security, PostgreSQL/Flyway, and Open Session in View disabled; both assignment modes lead through courier discovery, pickup, completion, and customer history/timeline retrieval.
 - Independent JDBC checks for committed workflow state, released courier availability, and timeline records, plus unchanged persisted state after authentication, role, ownership, and transition failures.
+- Mandatory PostgreSQL/Testcontainers tests that fail when Docker is unavailable; CI checks Docker access, runs Maven verification, and retains available test reports for 7 days on failure.
 - PostgreSQL-backed integration coverage for no-courier auto-dispatch failure behavior.
 - PostgreSQL-backed integration coverage for manual assignment conflict behavior.
 - PostgreSQL-backed coverage for sequential double-assignment rejection and stale same-order version conflicts.
@@ -76,11 +77,11 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 
 ## Remaining
 
-The current plan has 4 remaining focused commits across CI and portfolio preparation. Counts may change as work is verified; the outcomes below define completion.
+The current plan has 3 remaining focused commits for portfolio preparation and final checks. Counts may change as work is verified; the outcomes below define completion.
 
 ### Verification And CI
 
-- Require database-backed tests in full verification and CI; fail rather than silently skip when Docker is unavailable.
+- Confirm the updated verification workflow on GitHub Actions after push; local checks do not establish a remote CI result.
 
 ### Portfolio Preparation
 

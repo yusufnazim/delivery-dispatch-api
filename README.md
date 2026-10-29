@@ -368,7 +368,9 @@ Run the full Maven verification lifecycle and build the application jar:
 ./mvnw verify
 ```
 
-Docker must be available for the PostgreSQL Testcontainers integration tests.
+Both commands require a running Docker daemon accessible to the current user. PostgreSQL Testcontainers tests fail rather than skip when Docker is unavailable. Check access with `docker info`; the tests create disposable databases and do not require the Compose database to be running.
+
+CI checks Docker access and runs `./mvnw --batch-mode --no-transfer-progress verify` on pushes and pull requests to `main`. On failure, it uploads available `target/surefire-reports/` files as the `test-reports` artifact, retained for 7 days. A Docker preflight failure appears in the job log before test reports exist. Locally, inspect the same reports directory for failure details. Focused test commands below are not a substitute for full verification before committing.
 
 `AuthenticatedDeliveryWorkflowIntegrationTest` uses the full application and MockMvc security filter chain against a fresh Flyway-migrated PostgreSQL container, with `open-in-view: false`. It logs in database users with BCrypt-hashed passwords and sends the returned JWTs as bearer headers; services, repositories, and authentication are not mocked. It covers automatic and manual assignment through courier discovery, pickup, completion, and customer history/timeline retrieval. Independent JDBC reads check committed order state, courier availability, and events. Rejected authentication, role, ownership, and transition requests must leave database state unchanged. The existing service-level workflow tests remain separate.
 

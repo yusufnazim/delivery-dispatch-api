@@ -25,7 +25,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "spring.flyway.enabled=true",
         "spring.jpa.hibernate.ddl-auto=validate"
 })
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class DeliveryEventRepositoryTest {
 

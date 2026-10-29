@@ -40,7 +40,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "spring.jpa.hibernate.ddl-auto=validate",
         "spring.main.allow-bean-definition-overriding=true"
 })
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 class DeliveryWorkflowIntegrationTest {
 
     @Container
