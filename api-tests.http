@@ -3,8 +3,15 @@
 @dispatcherToken = replace-with-dispatcher-jwt
 @customerToken = replace-with-customer-jwt
 @courierToken = replace-with-courier-jwt
+@orderId = replace-with-id-from-automatic-flow-create
+@manualOrderId = replace-with-id-from-manual-flow-create
+@cancelOrderId = replace-with-id-from-cancellation-flow-create
+@courierId = replace-with-id-from-operational-courier-list
 @currentOrderId = replace-with-id-from-current-assignment
 
+# Start with the README local profile and demo seed. Run individual requests, not the whole file.
+# Fill tokens and IDs from responses. Automatic, manual, and cancellation flows use separate new orders.
+# After assignment, courierToken must belong to the selected courier. Refresh currentOrderId for each delivery.
 # Use tokens returned by this API's login endpoint with the current JWT_ISSUER.
 # Invalid issuer/identity claims, signatures, or timestamps return 401 AUTHENTICATION_REQUIRED.
 # Valid tokens with the wrong endpoint role return 403 ACCESS_DENIED.
@@ -16,36 +23,44 @@ GET {{baseUrl}}/actuator/health
 ### OpenAPI document
 GET {{baseUrl}}/v3/api-docs
 
-### Register customer
-POST {{baseUrl}}/api/v1/auth/register
-Content-Type: application/json
-
-{
-  "email": "customer@example.com",
-  "password": "StrongPass123"
-}
-
-### Create dispatcher user
-POST {{baseUrl}}/api/v1/auth/users
-Authorization: Bearer {{adminToken}}
-Content-Type: application/json
-
-{
-  "email": "dispatcher@example.com",
-  "password": "StrongPass123",
-  "role": "DISPATCHER"
-}
-
-### Login
+### Log in as the seeded customer; set customerToken
 POST {{baseUrl}}/api/v1/auth/login
 Content-Type: application/json
 
 {
-  "email": "customer@example.com",
-  "password": "StrongPass123"
+  "email": "customer@delivery.local",
+  "password": "DemoPass123!"
 }
 
-### Create delivery order
+### Log in as the seeded dispatcher; set dispatcherToken
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "dispatcher@delivery.local",
+  "password": "DemoPass123!"
+}
+
+### Log in as the seeded admin; set adminToken
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@delivery.local",
+  "password": "DemoPass123!"
+}
+
+### Log in as a seeded courier; set courierToken
+# Use courier.two@delivery.local instead if that courier is selected for the manual flow.
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "courier.one@delivery.local",
+  "password": "DemoPass123!"
+}
+
+### Automatic flow: create a new delivery order; set orderId from the 201 response
 POST {{baseUrl}}/api/v1/orders
 Authorization: Bearer {{customerToken}}
 Content-Type: application/json
@@ -60,7 +75,7 @@ Content-Type: application/json
 }
 
 ### List customer delivery orders with defaults: page 0, size 20
-# Response is now {items, page, size, totalElements, totalPages}, not an array.
+# Response is {items, page, size, totalElements, totalPages}.
 # Only the authenticated customer's orders are included, newest first (createdAt DESC, id DESC).
 GET {{baseUrl}}/api/v1/orders
 Authorization: Bearer {{customerToken}}
@@ -76,16 +91,23 @@ GET {{baseUrl}}/api/v1/orders?page=-1&size=101
 Authorization: Bearer {{customerToken}}
 
 ### Get customer delivery order
-GET {{baseUrl}}/api/v1/orders/1
+GET {{baseUrl}}/api/v1/orders/{{orderId}}
 Authorization: Bearer {{customerToken}}
 
 ### Get customer delivery order timeline
-GET {{baseUrl}}/api/v1/orders/1/timeline
+GET {{baseUrl}}/api/v1/orders/{{orderId}}/timeline
 Authorization: Bearer {{customerToken}}
 
-### Cancel customer delivery order
-DELETE {{baseUrl}}/api/v1/orders/1
-Authorization: Bearer {{customerToken}}
+### Update courier location before automatic assignment
+# Allowed during delivery without changing availability. Stale writes return 409 COURIER_UPDATE_CONFLICT.
+PATCH {{baseUrl}}/api/v1/couriers/me/location
+Authorization: Bearer {{courierToken}}
+Content-Type: application/json
+
+{
+  "latitude": 41.032000,
+  "longitude": 28.978000
+}
 
 ### Update courier availability
 # Idle couriers only. Active deliveries return 409 COURIER_AVAILABILITY_CHANGE_NOT_ALLOWED.
@@ -100,11 +122,35 @@ Content-Type: application/json
 
 ### Auto-assign nearest eligible courier
 # A concurrent order/courier write can return 409 ORDER_ASSIGNMENT_CONFLICT; inspect current state before retrying.
-POST {{baseUrl}}/api/v1/dispatch/orders/1/auto-assign
+POST {{baseUrl}}/api/v1/dispatch/orders/{{orderId}}/auto-assign
 Authorization: Bearer {{dispatcherToken}}
 
+### Get the authenticated courier's current assignment
+# Use the courier identified in the assignment response. Set currentOrderId to the returned id.
+# 200 with an ASSIGNED/PICKED_UP order; 204 with no body when idle. Ownership comes from courierToken.
+GET {{baseUrl}}/api/v1/couriers/me/orders/current
+Authorization: Bearer {{courierToken}}
+
+### Mark assigned courier order as picked up
+POST {{baseUrl}}/api/v1/couriers/me/orders/{{currentOrderId}}/pickup
+Authorization: Bearer {{courierToken}}
+
+### Mark picked-up courier order as delivered
+# Success sets the courier to AVAILABLE. A concurrent courier/order write may return 409 COURIER_UPDATE_CONFLICT.
+# On conflict, completion and its timeline event roll back; reload current state before retrying.
+POST {{baseUrl}}/api/v1/couriers/me/orders/{{currentOrderId}}/deliver
+Authorization: Bearer {{courierToken}}
+
+### Confirm the courier is idle after completion: 204 with no body
+GET {{baseUrl}}/api/v1/couriers/me/orders/current
+Authorization: Bearer {{courierToken}}
+
+### Review completed order history: created, assigned, picked up, delivered
+GET {{baseUrl}}/api/v1/orders/{{orderId}}/timeline
+Authorization: Bearer {{customerToken}}
+
 ### List operational orders with defaults: all statuses, page 0, size 20
-# DISPATCHER or ADMIN only. Response is now {items, page, size, totalElements, totalPages}, not an array.
+# DISPATCHER or ADMIN only. Response is {items, page, size, totalElements, totalPages}.
 # Items include customer/courier details across all customers, ordered by createdAt DESC, id DESC.
 GET {{baseUrl}}/api/v1/dispatch/orders
 Authorization: Bearer {{dispatcherToken}}
@@ -129,7 +175,7 @@ GET {{baseUrl}}/api/v1/dispatch/orders?page=-1&size=101
 Authorization: Bearer {{dispatcherToken}}
 
 ### List operational couriers with defaults: all availability states, page 0, size 20
-# DISPATCHER or ADMIN only. Response is now {items, page, size, totalElements, totalPages}, not an array.
+# DISPATCHER or ADMIN only. Response is {items, page, size, totalElements, totalPages}.
 # Only courier users are included, ordered by id ASC; profile/location fields can be null.
 GET {{baseUrl}}/api/v1/dispatch/couriers
 Authorization: Bearer {{dispatcherToken}}
@@ -154,42 +200,100 @@ Authorization: Bearer {{dispatcherToken}}
 GET {{baseUrl}}/api/v1/dispatch/couriers?page=-1&size=101
 Authorization: Bearer {{dispatcherToken}}
 
-### Manually assign a courier
+### Manual flow: create a separate pending order; set manualOrderId from the 201 response
+POST {{baseUrl}}/api/v1/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "pickupAddress": "Taksim Square, Beyoglu",
+  "pickupLatitude": 41.036900,
+  "pickupLongitude": 28.985000,
+  "dropoffAddress": "Kadikoy Pier",
+  "dropoffLatitude": 40.990900,
+  "dropoffLongitude": 29.023300
+}
+
+### Manually assign an idle, available courier selected from the operational courier list
+# Set courierId from a real courier item's id, not an admin/customer id. ADMIN may also use this endpoint.
 # Different pending orders cannot claim the same courier concurrently; the losing assignment rolls back.
-POST {{baseUrl}}/api/v1/dispatch/orders/1/assign
+POST {{baseUrl}}/api/v1/dispatch/orders/{{manualOrderId}}/assign
 Authorization: Bearer {{dispatcherToken}}
 Content-Type: application/json
 
 {
-  "courierId": 1
+  "courierId": {{courierId}}
 }
 
-### Update courier location
-# Allowed during delivery without changing availability. Stale writes return 409 COURIER_UPDATE_CONFLICT.
-PATCH {{baseUrl}}/api/v1/couriers/me/location
-Authorization: Bearer {{courierToken}}
-Content-Type: application/json
-
-{
-  "latitude": 41.008200,
-  "longitude": 28.978400
-}
-
-### Get the authenticated courier's current assignment
-# 200 with an ASSIGNED/PICKED_UP order and addresses; 204 with no body when idle, including after delivery.
-# Set currentOrderId above to the returned id. Ownership comes from courierToken, not a supplied courier id.
+### Discover the manual assignment; set currentOrderId from the response
+# Log in as the selected courier and replace courierToken first.
 GET {{baseUrl}}/api/v1/couriers/me/orders/current
 Authorization: Bearer {{courierToken}}
 
-### Mark assigned courier order as picked up
+### Pick up the manually assigned order
 POST {{baseUrl}}/api/v1/couriers/me/orders/{{currentOrderId}}/pickup
 Authorization: Bearer {{courierToken}}
 
-### Mark picked-up courier order as delivered
-# Success sets the courier to AVAILABLE. A concurrent courier/order write may return 409 COURIER_UPDATE_CONFLICT.
-# On conflict, completion and its timeline event roll back; reload current state before retrying.
+### Complete the manually assigned order
 POST {{baseUrl}}/api/v1/couriers/me/orders/{{currentOrderId}}/deliver
 Authorization: Bearer {{courierToken}}
+
+### Review the manually assigned order's completed timeline
+GET {{baseUrl}}/api/v1/orders/{{manualOrderId}}/timeline
+Authorization: Bearer {{customerToken}}
+
+### Cancellation flow: create another pending order; set cancelOrderId from the 201 response
+POST {{baseUrl}}/api/v1/orders
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{
+  "pickupAddress": "Taksim Square, Beyoglu",
+  "pickupLatitude": 41.036900,
+  "pickupLongitude": 28.985000,
+  "dropoffAddress": "Kadikoy Pier",
+  "dropoffLatitude": 40.990900,
+  "dropoffLongitude": 29.023300
+}
+
+### Cancel only the new, owned PENDING order: 200 with status CANCELLED
+DELETE {{baseUrl}}/api/v1/orders/{{cancelOrderId}}
+Authorization: Bearer {{customerToken}}
+
+### Review the cancelled order's timeline: ORDER_CREATED, ORDER_CANCELLED
+GET {{baseUrl}}/api/v1/orders/{{cancelOrderId}}/timeline
+Authorization: Bearer {{customerToken}}
+
+### Optional: register a customer (201; repeated email returns 409)
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "customer@example.com",
+  "password": "StrongPass123"
+}
+
+### Optional: create a dispatcher user as admin (201; repeated email returns 409)
+POST {{baseUrl}}/api/v1/auth/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "email": "dispatcher@example.com",
+  "password": "StrongPass123",
+  "role": "DISPATCHER"
+}
+
+### Missing token: 401 AUTHENTICATION_REQUIRED
+GET {{baseUrl}}/api/v1/orders
+
+### Wrong role: 403 ACCESS_DENIED
+GET {{baseUrl}}/api/v1/dispatch/orders
+Authorization: Bearer {{customerToken}}
+
+### Reassign the completed automatic-flow order: 409 ORDER_ASSIGNMENT_NOT_ALLOWED
+POST {{baseUrl}}/api/v1/dispatch/orders/{{orderId}}/auto-assign
+Authorization: Bearer {{dispatcherToken}}
 
 ### Invalid order id: 400 INVALID_REQUEST_PARAMETER
 GET {{baseUrl}}/api/v1/orders/abc

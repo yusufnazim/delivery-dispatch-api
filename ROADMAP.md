@@ -75,14 +75,22 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Service, MVC, OpenAPI, and PostgreSQL coverage for availability filters, page boundaries, role isolation, validation, bounded entity loading, and dispatch candidates beyond the first display page.
 - Full local delivery walkthrough from order creation through auto-assignment, pickup, delivery, and timeline review.
 - [Backend architecture](docs/architecture.md) with source-linked package boundaries, schema relationships, security/ownership rules, transactions, concurrency protection, query behavior, and explicit v1 limits.
+- Verified demo guide for both assignment modes and separate cancellation, with response-derived IDs, seeded role logins, repeat-demo guidance, and clean-build/jar commands.
+
+## Final Verification
+
+Verified locally on 2026-10-29:
+
+- `./mvnw --batch-mode --no-transfer-progress clean verify`: 564 tests passed with zero failures, errors, or skips; executable jar built.
+- Fresh PostgreSQL startup through Compose, all eight Flyway migrations, packaged-jar and Maven startup, public health/Swagger/OpenAPI, and unchanged seed/history data across restarts.
+- 69 live HTTP audit requests covering real authentication, both assignment modes, courier actions, timelines, cancellation, pagination/filtering, and rejected requests without persisted-state changes.
+- All 49 edited `api-tests.http` examples replayed with actual tokens and IDs; Markdown links and shell syntax checked.
+- Disposable audit infrastructure removed; existing development data preserved. Git authorship and local-only file exclusions checked.
+
+The preceding architecture commit `b563768` passed [GitHub Actions](https://github.com/yusufnazim/delivery-dispatch-api/actions/runs/40871408372). Confirm CI for each newly pushed revision; local verification does not establish its remote result.
 
 ## Remaining
 
-The current plan has 2 remaining focused commits for portfolio preparation and final checks. Counts may change as work is verified; the outcomes below define completion.
-
-### Portfolio Preparation
-
-- Prepare a technical project walkthrough and evidence-based achievements for interviews and resume use.
-- Finish the clean-start demo, code/documentation consistency checks, Git-history review, and final verification. Keep API examples current as each behavior changes.
+No planned v1 feature or documentation commits remain. Interview/portfolio material was excluded at the user's request. New defects should receive focused fixes with regression tests, not artificial commits to meet a count.
 
 Redis, queues, microservices, external routing, and cloud deployment remain future scope, not prerequisites for this v1.
