@@ -20,6 +20,8 @@ Spring Boot REST API for customer delivery orders, courier dispatch rules, and d
 
 Planned documentation and final portfolio work are tracked separately in [ROADMAP.md](ROADMAP.md).
 
+See [Backend Architecture](docs/architecture.md) for the request flow, schema relationships, security, transactions, concurrency protection, and design tradeoffs.
+
 ## Tech Stack
 
 - Java 21

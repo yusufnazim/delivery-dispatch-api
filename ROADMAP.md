@@ -74,18 +74,14 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Bounded operational courier pagination with optional availability filtering, courier-only totals, and stable id ordering; the nearest-courier candidate lookup remains unpaged.
 - Service, MVC, OpenAPI, and PostgreSQL coverage for availability filters, page boundaries, role isolation, validation, bounded entity loading, and dispatch candidates beyond the first display page.
 - Full local delivery walkthrough from order creation through auto-assignment, pickup, delivery, and timeline review.
+- [Backend architecture](docs/architecture.md) with source-linked package boundaries, schema relationships, security/ownership rules, transactions, concurrency protection, query behavior, and explicit v1 limits.
 
 ## Remaining
 
-The current plan has 3 remaining focused commits for portfolio preparation and final checks. Counts may change as work is verified; the outcomes below define completion.
-
-### Verification And CI
-
-- Confirm the updated verification workflow on GitHub Actions after push; local checks do not establish a remote CI result.
+The current plan has 2 remaining focused commits for portfolio preparation and final checks. Counts may change as work is verified; the outcomes below define completion.
 
 ### Portfolio Preparation
 
-- Document the implemented architecture, schema relationships, transaction/concurrency guarantees, and deliberate v1 tradeoffs.
 - Prepare a technical project walkthrough and evidence-based achievements for interviews and resume use.
 - Finish the clean-start demo, code/documentation consistency checks, Git-history review, and final verification. Keep API examples current as each behavior changes.
 
