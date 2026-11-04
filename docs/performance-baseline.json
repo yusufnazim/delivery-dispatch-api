@@ -1,0 +1,214 @@
+{
+  "runs": [
+    {
+      "completedAt": "2026-11-04T14:23:08.094200156Z",
+      "sourceRevision": "a27b226",
+      "java": "21.0.12.1+1-1-26.04.4-Ubuntu",
+      "javaVendor": "Ubuntu",
+      "os": "Linux 7.0.0-42-generic amd64",
+      "availableProcessors": 8,
+      "maxHeapBytes": 1073741824,
+      "visibleMemoryBytes": 15954513920,
+      "postgresVersion": "16.13",
+      "postgresImage": "postgres:16-alpine",
+      "postgresImageId": "sha256:667495ca2ac33180ad3690178da1bf274f481d0c43849d4c1941f0176983bd2e",
+      "postgresSettings": {
+        "fsync": "on",
+        "maxConnections": "100",
+        "sharedBuffers": "128MB",
+        "synchronousCommit": "on",
+        "fullPageWrites": "on"
+      },
+      "dataset": {
+        "orders": 10000,
+        "customers": 20,
+        "couriers": 500,
+        "ordersPerCustomer": 500,
+        "initialEvents": 25000,
+        "pageSize": 20
+      },
+      "warmupRequests": {
+        "autoDispatch": 100,
+        "eachReadWorkload": 200
+      },
+      "results": [
+        {
+          "workload": "customer-orders",
+          "concurrency": 4,
+          "requests": 2000,
+          "elapsedSeconds": 14.952591748,
+          "requestsPerSecond": 133.75607611754077,
+          "meanMs": 29.4473408215,
+          "p50Ms": 25.96128,
+          "p95Ms": 57.509316,
+          "p99Ms": 81.333896,
+          "maxMs": 133.357585
+        },
+        {
+          "workload": "operational-orders",
+          "concurrency": 4,
+          "requests": 2000,
+          "elapsedSeconds": 31.394930902,
+          "requestsPerSecond": 63.7045517393571,
+          "meanMs": 62.406381357,
+          "p50Ms": 60.090143,
+          "p95Ms": 90.650977,
+          "p99Ms": 126.140376,
+          "maxMs": 165.352416
+        },
+        {
+          "workload": "auto-dispatch",
+          "concurrency": 1,
+          "requests": 200,
+          "elapsedSeconds": 3.608393759,
+          "requestsPerSecond": 55.42632355495103,
+          "meanMs": 17.912726065,
+          "p50Ms": 16.569359,
+          "p95Ms": 23.913886,
+          "p99Ms": 32.037811,
+          "maxMs": 39.352461
+        }
+      ]
+    },
+    {
+      "completedAt": "2026-11-04T14:25:03.946911277Z",
+      "sourceRevision": "a27b226",
+      "java": "21.0.12.1+1-1-26.04.4-Ubuntu",
+      "javaVendor": "Ubuntu",
+      "os": "Linux 7.0.0-42-generic amd64",
+      "availableProcessors": 8,
+      "maxHeapBytes": 1073741824,
+      "visibleMemoryBytes": 15954513920,
+      "postgresVersion": "16.13",
+      "postgresImage": "postgres:16-alpine",
+      "postgresImageId": "sha256:667495ca2ac33180ad3690178da1bf274f481d0c43849d4c1941f0176983bd2e",
+      "postgresSettings": {
+        "maxConnections": "100",
+        "fsync": "on",
+        "fullPageWrites": "on",
+        "synchronousCommit": "on",
+        "sharedBuffers": "128MB"
+      },
+      "dataset": {
+        "orders": 10000,
+        "pageSize": 20,
+        "initialEvents": 25000,
+        "ordersPerCustomer": 500,
+        "couriers": 500,
+        "customers": 20
+      },
+      "warmupRequests": {
+        "eachReadWorkload": 200,
+        "autoDispatch": 100
+      },
+      "results": [
+        {
+          "workload": "customer-orders",
+          "concurrency": 4,
+          "requests": 2000,
+          "elapsedSeconds": 10.331386269,
+          "requestsPerSecond": 193.58486343707145,
+          "meanMs": 20.265504945,
+          "p50Ms": 17.087636,
+          "p95Ms": 38.693145,
+          "p99Ms": 57.590742,
+          "maxMs": 111.320553
+        },
+        {
+          "workload": "operational-orders",
+          "concurrency": 4,
+          "requests": 2000,
+          "elapsedSeconds": 37.264286485,
+          "requestsPerSecond": 53.67069085852644,
+          "meanMs": 73.7459164075,
+          "p50Ms": 72.44493,
+          "p95Ms": 105.9895,
+          "p99Ms": 129.972259,
+          "maxMs": 159.409914
+        },
+        {
+          "workload": "auto-dispatch",
+          "concurrency": 1,
+          "requests": 200,
+          "elapsedSeconds": 4.039083462,
+          "requestsPerSecond": 49.51618402581056,
+          "meanMs": 20.044658285,
+          "p50Ms": 19.028299,
+          "p95Ms": 25.686435,
+          "p99Ms": 32.641577,
+          "maxMs": 60.024701
+        }
+      ]
+    },
+    {
+      "completedAt": "2026-11-04T14:26:58.179620633Z",
+      "sourceRevision": "a27b226",
+      "java": "21.0.12.1+1-1-26.04.4-Ubuntu",
+      "javaVendor": "Ubuntu",
+      "os": "Linux 7.0.0-42-generic amd64",
+      "availableProcessors": 8,
+      "maxHeapBytes": 1073741824,
+      "visibleMemoryBytes": 15954513920,
+      "postgresVersion": "16.13",
+      "postgresImage": "postgres:16-alpine",
+      "postgresImageId": "sha256:667495ca2ac33180ad3690178da1bf274f481d0c43849d4c1941f0176983bd2e",
+      "postgresSettings": {
+        "fullPageWrites": "on",
+        "synchronousCommit": "on",
+        "sharedBuffers": "128MB",
+        "maxConnections": "100",
+        "fsync": "on"
+      },
+      "dataset": {
+        "initialEvents": 25000,
+        "ordersPerCustomer": 500,
+        "couriers": 500,
+        "customers": 20,
+        "orders": 10000,
+        "pageSize": 20
+      },
+      "warmupRequests": {
+        "eachReadWorkload": 200,
+        "autoDispatch": 100
+      },
+      "results": [
+        {
+          "workload": "customer-orders",
+          "concurrency": 4,
+          "requests": 2000,
+          "elapsedSeconds": 13.654611559,
+          "requestsPerSecond": 146.47066241014846,
+          "meanMs": 26.781211274,
+          "p50Ms": 24.272124,
+          "p95Ms": 48.209669,
+          "p99Ms": 61.933766,
+          "maxMs": 129.208382
+        },
+        {
+          "workload": "operational-orders",
+          "concurrency": 4,
+          "requests": 2000,
+          "elapsedSeconds": 32.623774903,
+          "requestsPerSecond": 61.30498404757216,
+          "meanMs": 64.527861228,
+          "p50Ms": 58.968206,
+          "p95Ms": 111.249291,
+          "p99Ms": 155.424378,
+          "maxMs": 216.51639
+        },
+        {
+          "workload": "auto-dispatch",
+          "concurrency": 1,
+          "requests": 200,
+          "elapsedSeconds": 3.552731862,
+          "requestsPerSecond": 56.29470721930886,
+          "meanMs": 17.633127575,
+          "p50Ms": 16.804974,
+          "p95Ms": 23.222397,
+          "p99Ms": 26.614399,
+          "maxMs": 35.649288
+        }
+      ]
+    }
+  ]
+}

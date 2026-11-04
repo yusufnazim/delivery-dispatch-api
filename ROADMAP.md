@@ -80,6 +80,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Standalone `compose.demo.yml` starts the API and PostgreSQL with health checks, localhost-only configurable API access, and a separate persistent database volume; the original database-only workflow remains unchanged.
 - Request correlation using a bounded `X-Request-ID` header, generated UUID fallback, response headers before security checks, and request-thread SLF4J MDC with cleanup and servlet error-dispatch reuse. OpenAPI documents the response header; README and HTTP examples describe its use.
 - HTTP completion logs with method, matched route template, final status, monotonic duration, and request ID. Entries omit raw URLs, path/query values, bodies, credentials, and exception messages; servlet error dispatches produce one entry with the original route and final status.
+- Opt-in Java HTTP performance checks for customer/operational pagination and automatic dispatch against disposable PostgreSQL with disk synchronization enabled. A fixed dataset, response and persisted-state checks, latency/throughput reports, and a measured local baseline are documented in [Local Performance Checks](docs/performance.md).
 
 ## Final Verification
 
@@ -107,9 +108,12 @@ The third follow-up adds request correlation IDs. Maven verification on 2026-11-
 
 The fourth follow-up adds safe request logging. Maven verification on 2026-11-04 passed 616 tests with zero failures, errors, or skips. Twenty new cases cover privacy, unchanged bodies, security/MVC/domain responses, request isolation, method normalization, and servlet error handling. Real embedded-server tests verify a single entry with the original route and final 500/503 status. Documentation validation passed 37 shell blocks and 39 local links. Completion logs cover the synchronous API; async completion and requests aborted without a completion/error dispatch are outside this behavior.
 
-Two planned follow-up commits remain:
+The fifth follow-up adds reproducible local performance checks using existing Java/Testcontainers dependencies. Three fresh JVM/database runs on 2026-11-04 each passed 4,200 measured requests against 10,000 orders and 500 couriers, with response validation and independent committed-state/timeline checks. Reports preserve hardware/runtime context and per-run statistics; the guide documents shared-host variation, closed-loop load, and the absence of production-capacity claims. PostgreSQL fsync, synchronous commits, and full-page writes are explicitly enabled and verified. The runner is opt-in; normal CI continues to run correctness tests without performance timing thresholds.
 
-- Reproducible read/dispatch performance checks and a measured baseline.
+Separate Maven verification passed 619 tests with zero failures, errors, or skips and built the jar, including three new metric-calculation tests. Documentation checks passed 38 shell blocks and 45 local links. The saved baseline matches the generated reports, and all temporary test containers stopped after verification.
+
+One planned follow-up commit remains:
+
 - Automated dependency-update proposals for Maven and GitHub Actions, with review and CI required.
 
 Redis, queues, microservices, external routing, and cloud deployment remain future scope, not prerequisites for this v1.

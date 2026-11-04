@@ -1,0 +1,28 @@
+spring:
+  autoconfigure:
+    exclude: ""
+  main:
+    allow-bean-definition-overriding: true
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+server:
+  address: 127.0.0.1
+
+app:
+  demo-data:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.yusufnazim.deliverydispatch.observability.RequestLoggingFilter: INFO
+  pattern:
+    level: "%5p [requestId:%X{requestId:-}]"

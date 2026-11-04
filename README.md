@@ -502,6 +502,11 @@ Run only the authenticated HTTP workflow checks:
 ./mvnw -Dtest=AuthenticatedDeliveryWorkflowIntegrationTest test
 ```
 
+For opt-in paginated-read and automatic-dispatch measurements against disposable
+PostgreSQL, see [Local Performance Checks](docs/performance.md). It documents the
+workload, validation, measurement limits, and local baseline. The performance
+runner is separate from the normal correctness suite and adds no CI timing gates.
+
 To run the built jar instead of Maven, stop the existing API process first and keep PostgreSQL running:
 
 ```bash
