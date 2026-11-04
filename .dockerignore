@@ -1,0 +1,21 @@
+# Only application build inputs belong in the Docker context.
+**
+!Dockerfile
+!.dockerignore
+!pom.xml
+!mvnw
+!.mvn/
+.mvn/*
+!.mvn/wrapper/
+.mvn/wrapper/*
+!.mvn/wrapper/maven-wrapper.properties
+!src/
+src/*
+!src/main/
+!src/main/**
+
+# Keep local secrets out even if accidentally placed under application sources.
+**/.env
+**/.env.*
+**/*.key
+**/*.pem

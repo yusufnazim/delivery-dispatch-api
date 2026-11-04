@@ -76,6 +76,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Full local delivery walkthrough from order creation through auto-assignment, pickup, delivery, and timeline review.
 - [Backend architecture](docs/architecture.md) with source-linked package boundaries, schema relationships, security/ownership rules, transactions, concurrency protection, query behavior, and explicit v1 limits.
 - Verified demo guide for both assignment modes and separate cancellation, with response-derived IDs, seeded role logins, repeat-demo guidance, and clean-build/jar commands.
+- Multi-stage Java 21 API image built with the checked-in Maven Wrapper, a non-root JRE runtime, and a restricted build context excluding host output, tests, Git metadata, and local planning files. README documents image build/run commands and separate test verification.
 
 ## Final Verification
 
@@ -92,5 +93,17 @@ The preceding architecture commit `b563768` passed [GitHub Actions](https://gith
 ## Remaining
 
 No planned v1 feature or documentation commits remain. Interview/portfolio material was excluded at the user's request. New defects should receive focused fixes with regression tests, not artificial commits to meet a count.
+
+### Post-v1 Polish
+
+The first of six optional follow-up commits adds the API container image. Verified on 2026-11-04: image build, filtered build context, UID/GID `10001`, Java as PID 1, health/Swagger/OpenAPI, all eight migrations, a real-login delivery workflow, security errors, and graceful shutdown. Separate Maven verification passed 564 tests with zero failures, errors, or skips. Smoke tests used disposable PostgreSQL; existing development data was untouched.
+
+Five planned follow-up commits remain:
+
+- Optional full-stack Compose demo with API and PostgreSQL readiness checks; the current Compose file still starts only PostgreSQL.
+- Request correlation IDs with security/error-path coverage.
+- Safe request logging without credentials or sensitive payloads.
+- Reproducible read/dispatch performance checks and a measured baseline.
+- Automated dependency-update proposals for Maven and GitHub Actions, with review and CI required.
 
 Redis, queues, microservices, external routing, and cloud deployment remain future scope, not prerequisites for this v1.

@@ -65,6 +65,41 @@ curl http://localhost:8080/actuator/health
 
 Swagger UI is available at `http://localhost:8080/swagger-ui/index.html`. The OpenAPI JSON document is available at `http://localhost:8080/v3/api-docs`, and runnable request examples are in [api-tests.http](api-tests.http).
 
+## API Container Image
+
+Build from source with Docker; no host JDK or Maven installation is needed for this command:
+
+```bash
+docker build --pull -t delivery-dispatch-api:local .
+```
+
+The build uses the checked-in Maven Wrapper and a Java 21 JDK stage. The runtime stage contains a Java 21 JRE and the executable jar, runs as UID/GID `10001`, and starts Java directly so it receives stop signals. Host build output, Git metadata, local planning files, and test sources are excluded from the build context.
+
+Image builds skip tests because PostgreSQL integration tests require a Docker daemon. Run `./mvnw verify` separately with JDK 21 and Docker available; a successful image build is not a substitute for verification.
+
+For the local demo, start PostgreSQL with Quick Start step 1, stop any host API using port 8080, and run:
+
+```bash
+docker run --rm --name delivery-dispatch-api \
+  --network delivery-dispatch-api_default \
+  -p 127.0.0.1:8080:8080 \
+  -e SPRING_PROFILES_ACTIVE=local \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/delivery_dispatch \
+  delivery-dispatch-api:local
+```
+
+This uses the default Compose project/network name for this repository directory. If you override the Compose project name, replace `delivery-dispatch-api_default` with its network name. Containers use the PostgreSQL service name and internal port `5432`, regardless of `POSTGRES_PORT` on the host. Health and Swagger URLs are unchanged.
+
+The image does not activate a profile automatically. The explicit `local` profile above enables development credentials, the development JWT key, and demo seeding; do not use it for a public deployment. No Docker socket mount is needed to build or run the API.
+
+Stop the API from another terminal:
+
+```bash
+docker stop delivery-dispatch-api
+```
+
+The existing Compose file still starts only PostgreSQL. An optional full-stack Compose setup is planned separately.
+
 ## Demo Accounts
 
 All local demo accounts use the password `DemoPass123!`.
