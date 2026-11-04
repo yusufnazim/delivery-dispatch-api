@@ -39,7 +39,7 @@ See [Backend Architecture](docs/architecture.md) for the request flow, schema re
 - Docker with Docker Compose
 - `curl` for the local walkthrough
 
-Maven does not need to be installed because the repository includes `./mvnw`.
+Maven does not need to be installed because the repository includes `./mvnw`. The full-stack container demo below needs only Docker with Compose; JDK 21 is required for host development and tests.
 
 ## Quick Start
 
@@ -98,7 +98,33 @@ Stop the API from another terminal:
 docker stop delivery-dispatch-api
 ```
 
-The existing Compose file still starts only PostgreSQL. An optional full-stack Compose setup is planned separately.
+## Full-Stack Container Demo
+
+Build and start the API and PostgreSQL together:
+
+```bash
+docker compose -f compose.demo.yml up -d --build --wait --wait-timeout 180
+curl http://localhost:8080/actuator/health
+```
+
+The API waits for PostgreSQL readiness, runs Flyway and demo seeding, and has its own HTTP health check. Swagger and the walkthrough use the same URLs and demo accounts as above. This is a local-only demo with development credentials and JWT key, not a production deployment.
+
+The standalone demo uses project `delivery-dispatch-demo` and its own named database volume. It does not reuse or modify the database-only `docker-compose.yml` volume. PostgreSQL has no published host port; the API binds to `127.0.0.1`. Stop any API already using port 8080, or prefix Compose commands with `API_PORT=8081` and use port 8081 in requests.
+
+Inspect health and startup logs:
+
+```bash
+docker compose -f compose.demo.yml ps
+docker compose -f compose.demo.yml logs --tail=100 api postgres
+```
+
+Stop and remove demo containers while retaining database data:
+
+```bash
+docker compose -f compose.demo.yml down
+```
+
+Run the startup command again to resume with persisted data. Demo seeding does not reset existing records. To intentionally delete only this demo's database, run `docker compose -f compose.demo.yml down --volumes`. Use this file on its own, not merged with `docker-compose.yml`; the original Quick Start workflow remains unchanged. Image builds still skip tests: run `./mvnw verify` separately before delivering code changes.
 
 ## Demo Accounts
 

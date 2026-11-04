@@ -1,0 +1,38 @@
+name: delivery-dispatch-demo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: delivery_dispatch
+      POSTGRES_USER: delivery_dispatch
+      POSTGRES_PASSWORD: delivery_dispatch
+    volumes:
+      - demo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U delivery_dispatch -d delivery_dispatch"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/delivery_dispatch
+      DEMO_DATA_ENABLED: "true"
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "4", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    stop_grace_period: 40s
+
+volumes:
+  demo-postgres-data:

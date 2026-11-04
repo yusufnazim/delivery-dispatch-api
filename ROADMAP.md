@@ -77,6 +77,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - [Backend architecture](docs/architecture.md) with source-linked package boundaries, schema relationships, security/ownership rules, transactions, concurrency protection, query behavior, and explicit v1 limits.
 - Verified demo guide for both assignment modes and separate cancellation, with response-derived IDs, seeded role logins, repeat-demo guidance, and clean-build/jar commands.
 - Multi-stage Java 21 API image built with the checked-in Maven Wrapper, a non-root JRE runtime, and a restricted build context excluding host output, tests, Git metadata, and local planning files. README documents image build/run commands and separate test verification.
+- Standalone `compose.demo.yml` starts the API and PostgreSQL with health checks, localhost-only configurable API access, and a separate persistent database volume; the original database-only workflow remains unchanged.
 
 ## Final Verification
 
@@ -98,9 +99,10 @@ No planned v1 feature or documentation commits remain. Interview/portfolio mater
 
 The first of six optional follow-up commits adds the API container image. Verified on 2026-11-04: image build, filtered build context, UID/GID `10001`, Java as PID 1, health/Swagger/OpenAPI, all eight migrations, a real-login delivery workflow, security errors, and graceful shutdown. Separate Maven verification passed 564 tests with zero failures, errors, or skips. Smoke tests used disposable PostgreSQL; existing development data was untouched.
 
-Five planned follow-up commits remain:
+The second follow-up adds the full-stack Compose demo. Verified on 2026-11-04: Compose configuration and image build, healthy startup, real-login delivery workflow, all eight migrations, five seed users, and persisted delivery/timeline data after down/up on an alternate API port. README validation passed 36 shell blocks and six local links. The disposable test project was isolated from the existing development database. No Java code changed; the Maven suite was not rerun for this infrastructure-only slice.
 
-- Optional full-stack Compose demo with API and PostgreSQL readiness checks; the current Compose file still starts only PostgreSQL.
+Four planned follow-up commits remain:
+
 - Request correlation IDs with security/error-path coverage.
 - Safe request logging without credentials or sensitive payloads.
 - Reproducible read/dispatch performance checks and a measured baseline.
