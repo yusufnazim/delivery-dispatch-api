@@ -420,6 +420,17 @@ An authenticated customer's `GET /api/v1/orders/abc` returns `400 INVALID_REQUES
 
 Authentication failures return `401`, role restrictions return `403`, and business conflicts return `409`. Controller return-value validation is a server error (`500`), not a client error.
 
+## Request Correlation
+
+Responses include `X-Request-ID`, including authentication, authorization, validation, and domain errors. Send one ID of 1-64 ASCII characters, starting with a letter or digit and containing only letters, digits, `.`, `_`, or `-`. Missing, invalid, oversized, or repeated headers are replaced with a generated UUID. Always use the response header when reporting a failed request.
+
+```bash
+curl -i http://localhost:8080/actuator/health \
+  -H 'X-Request-ID: demo-health-123'
+```
+
+Logs written while handling the request carry the same ID as `requestId` in SLF4J MDC; the default log pattern displays it. The context is cleaned up after each request and preserved during servlet error dispatches. Startup and background logs have no request ID. These IDs are diagnostic labels, not authentication or idempotency keys. This covers the current synchronous MVC workflow; propagation into background tasks is not provided. Automatic HTTP access logging is planned separately.
+
 ## Assignment Conflicts
 
 Manual and automatic assignment use optimistic versions on both the order and courier's user record. A partial unique index also limits each courier to one `ASSIGNED` or `PICKED_UP` order; completed deliveries do not occupy that slot.

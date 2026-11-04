@@ -78,6 +78,7 @@ Public roadmap for shipped behavior and remaining work. `PLAN.md` remains the lo
 - Verified demo guide for both assignment modes and separate cancellation, with response-derived IDs, seeded role logins, repeat-demo guidance, and clean-build/jar commands.
 - Multi-stage Java 21 API image built with the checked-in Maven Wrapper, a non-root JRE runtime, and a restricted build context excluding host output, tests, Git metadata, and local planning files. README documents image build/run commands and separate test verification.
 - Standalone `compose.demo.yml` starts the API and PostgreSQL with health checks, localhost-only configurable API access, and a separate persistent database volume; the original database-only workflow remains unchanged.
+- Request correlation using a bounded `X-Request-ID` header, generated UUID fallback, response headers before security checks, and request-thread SLF4J MDC with cleanup and servlet error-dispatch reuse. OpenAPI documents the response header; README and HTTP examples describe its use.
 
 ## Final Verification
 
@@ -101,9 +102,10 @@ The first of six optional follow-up commits adds the API container image. Verifi
 
 The second follow-up adds the full-stack Compose demo. Verified on 2026-11-04: Compose configuration and image build, healthy startup, real-login delivery workflow, all eight migrations, five seed users, and persisted delivery/timeline data after down/up on an alternate API port. README validation passed 36 shell blocks and six local links. The disposable test project was isolated from the existing development database. No Java code changed; the Maven suite was not rerun for this infrastructure-only slice.
 
-Four planned follow-up commits remain:
+The third follow-up adds request correlation IDs. Maven verification on 2026-11-04 passed 596 tests with zero failures, errors, or skips, including 32 new cases for safe/invalid/duplicate IDs, logging context, security and MVC errors, concurrent requests, cleanup, and error redispatch. A fresh container build and live HTTP checks confirmed generated/reused/replaced IDs, 400/401/403/404/405 responses, servlet error dispatch, and the default MDC console format. The disposable stack was removed. IDs label existing request-thread logs; automatic HTTP request logging is the next slice.
 
-- Request correlation IDs with security/error-path coverage.
+Three planned follow-up commits remain:
+
 - Safe request logging without credentials or sensitive payloads.
 - Reproducible read/dispatch performance checks and a measured baseline.
 - Automated dependency-update proposals for Maven and GitHub Actions, with review and CI required.

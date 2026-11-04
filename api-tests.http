@@ -16,9 +16,13 @@
 # Invalid issuer/identity claims, signatures, or timestamps return 401 AUTHENTICATION_REQUIRED.
 # Valid tokens with the wrong endpoint role return 403 ACCESS_DENIED.
 # API errors include details: [] except VALIDATION_FAILED, which lists field/message pairs without rejected values.
+# Responses include X-Request-ID for matching request-thread logs, including security/error responses.
+# One safe client ID (1-64 ASCII letters/digits/._-, starting with a letter/digit) is reused;
+# missing, invalid, oversized, or repeated headers are replaced with a UUID. Read the response header.
 
 ### Health check
 GET {{baseUrl}}/actuator/health
+X-Request-ID: demo-health-123
 
 ### OpenAPI document
 GET {{baseUrl}}/v3/api-docs

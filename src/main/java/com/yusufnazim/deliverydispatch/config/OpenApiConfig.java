@@ -1,9 +1,13 @@
 package com.yusufnazim.deliverydispatch.config;
 
-import io.swagger.v3.oas.models.OpenAPI;
+import com.yusufnazim.deliverydispatch.observability.RequestCorrelationFilter;
 import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,6 +15,19 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfig {
 
 	public static final String SECURITY_SCHEME_NAME = "bearerAuth";
+
+	@Bean
+	OperationCustomizer requestCorrelationHeaders() {
+		return (operation, handlerMethod) -> {
+			if (operation.getResponses() != null) {
+				operation.getResponses().values().forEach(response -> response.addHeaderObject(
+						RequestCorrelationFilter.HEADER_NAME,
+						new Header().description("Request ID shared with request-thread logs.")
+							.schema(new StringSchema().maxLength(64))));
+			}
+			return operation;
+		};
+	}
 
 	@Bean
 	OpenAPI deliveryDispatchOpenApi() {
