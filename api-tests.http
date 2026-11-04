@@ -19,6 +19,8 @@
 # Responses include X-Request-ID for matching request-thread logs, including security/error responses.
 # One safe client ID (1-64 ASCII letters/digits/._-, starting with a letter/digit) is reused;
 # missing, invalid, oversized, or repeated headers are replaced with a UUID. Read the response header.
+# Request completion logs contain method, matched route template, status, durationMs, and requestId.
+# Query/path values, bodies, tokens, cookies, and other headers are excluded from those entries.
 
 ### Health check
 GET {{baseUrl}}/actuator/health

@@ -7,9 +7,9 @@ the [roadmap](../ROADMAP.md) for remaining work.
 ## Runtime And Package Boundaries
 
 One Java 21 / Spring Boot application serves synchronous REST requests and writes
-to one PostgreSQL database. Docker Compose starts PostgreSQL; the Maven wrapper
-starts the application on the host. There is no broker, cache, background dispatch
-worker, or separate authentication service.
+to one PostgreSQL database. Docker Compose starts PostgreSQL for a host-run API,
+or starts both services with the standalone `compose.demo.yml`. There is no broker,
+cache, background dispatch worker, or separate authentication service.
 
 Under `com.yusufnazim.deliverydispatch`, packages are feature-oriented:
 
@@ -21,6 +21,7 @@ Under `com.yusufnazim.deliverydispatch`, packages are feature-oriented:
   and delivery completion.
 - `timeline` owns delivery event persistence and customer timeline reads.
 - `config` and `security` configure JWT validation, access rules, and OpenAPI.
+- `observability` owns request correlation and HTTP completion logging.
 - `exception` defines the shared error contract and MVC exception translation;
   feature-specific exceptions remain with their feature. `dto` contains the
   shared page response. `demo` contains local-profile seed data.
@@ -30,11 +31,13 @@ packages, with `dto` and `exception` subpackages where needed. The request flow 
 
 ```text
 HTTP request
+  -> correlation/request logging filters (request ID and timing)
   -> Spring Security (bearer token validation)
   -> MVC/controller (input validation, role checks, authenticated identity)
   -> service (transaction, ownership checks, orchestration, entity operations)
   -> Spring Data repository -> PostgreSQL
   -> response DTO -> JSON
+  -> completion log (route template, status, duration, request ID)
 ```
 
 Controllers do not call repositories. Delivery services construct entities from
@@ -262,6 +265,13 @@ for 401/403, since they can happen before controller execution. These responses
 share `code`, `message`, and `details`; validation details are sorted field/message
 pairs without rejected values, and non-validation errors have an empty array.
 Unexpected server failures are not reclassified as invalid client input.
+
+[RequestLoggingFilter](../src/main/java/com/yusufnazim/deliverydispatch/observability/RequestLoggingFilter.java)
+runs inside the correlation filter and before security. It records route templates
+rather than raw URLs, omits query values, bodies, credentials, and exception messages,
+and waits for servlet error dispatch when needed to log the final status once.
+Requests without a matched template use `<unresolved>`. Both filters cover the
+current synchronous MVC API; background-task and async propagation are not provided.
 
 [application-local.yml](../src/main/resources/application-local.yml) contains
 development-only database/JWT settings and enables idempotent demo seeding.

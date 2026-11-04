@@ -429,7 +429,19 @@ curl -i http://localhost:8080/actuator/health \
   -H 'X-Request-ID: demo-health-123'
 ```
 
-Logs written while handling the request carry the same ID as `requestId` in SLF4J MDC; the default log pattern displays it. The context is cleaned up after each request and preserved during servlet error dispatches. Startup and background logs have no request ID. These IDs are diagnostic labels, not authentication or idempotency keys. This covers the current synchronous MVC workflow; propagation into background tasks is not provided. Automatic HTTP access logging is planned separately.
+Logs written while handling the request carry the same ID as `requestId` in SLF4J MDC; the default log pattern displays it. The context is cleaned up after each request and preserved during servlet error dispatches. Startup and background logs have no request ID. These IDs are diagnostic labels, not authentication or idempotency keys. This covers the current synchronous MVC workflow; propagation into background tasks is not provided.
+
+## Request Logging
+
+The `com.yusufnazim.deliverydispatch.observability.RequestLoggingFilter` logger writes one INFO completion entry per synchronous request, including security rejections and handled API errors:
+
+```text
+http_request method=GET route=/api/v1/orders/{orderId} status=200 durationMs=8 requestId=demo-order-123
+```
+
+`route` is the matched Spring MVC template. Requests rejected before mapping or without a matched template use `<unresolved>`; raw URLs and path values are never used as a fallback. Nonstandard methods are recorded as `OTHER`. `durationMs` measures handling time using a monotonic clock and includes servlet error dispatch when needed. Exceptions and `sendError` defer the entry to the error dispatch so its final status is logged once. Requests aborted without a completion/error dispatch do not have a completion entry.
+
+These entries contain no query parameters, headers other than the validated request ID, cookies, user identities, request/response bodies, or exception messages. The filter streams bodies unchanged and does not cache them. This policy applies to the request logger; it does not redact messages written by other application/framework loggers. Asynchronous request completion is outside the current synchronous API scope.
 
 ## Assignment Conflicts
 
